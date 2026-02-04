@@ -1,0 +1,41 @@
+{
+  "name": "txv6 Development",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "txv6-dev",
+  "workspaceFolder": "/txv6",
+  // Configure tool-specific properties
+  "customizations": {
+    "vscode": {
+      // Set *default* container specific settings.json values on container create
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "files.eol": "\n",
+        "clangd.path": "clangd",
+        "clangd.arguments": [
+          "--compile-commands-dir=${workspaceFolder}",
+          "--background-index",
+          "--clang-tidy"
+        ],
+        "editor.formatOnSave": true,
+        "C_Cpp.formatting": "clangFormat",
+        "[c]": {
+          "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd",
+          "editor.formatOnSave": true
+        }
+      },
+      // Add extensions you want installed when the container is created
+      "extensions": [
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-vscode.makefile-tools"
+      ]
+    }
+  },
+  // Use 'forwardPorts' to make a list of ports inside the container available locally
+  // "forwardPorts": [],
+  // Use 'postCreateCommand' to run commands after the container is created
+  "postCreateCommand": "echo 'Dev container ready! Run make to build xv6.'",
+  // Comment out to connect as root instead
+  "remoteUser": "root",
+  // Keep container running
+  "overrideCommand": true
+}

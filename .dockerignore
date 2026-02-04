@@ -1,0 +1,18 @@
+# Ignore build artifacts
+*.o
+*.d
+*.asm
+*.sym
+kernel/kernel
+user/_*
+user/*.o
+mkfs/mkfs
+fs.img
+
+# Ignore git directory
+.git
+.gitignore
+
+# Ignore Docker files
+Dockerfile
+.dockerignore

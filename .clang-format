@@ -1,0 +1,7 @@
+---
+BasedOnStyle: Chromium
+IndentWidth: 2
+ColumnLimit: 80
+SortIncludes: false
+PointerAlignment: Right
+DerivePointerAlignment: false

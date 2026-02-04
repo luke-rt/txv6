@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  txv6-dev:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    image: txv6:latest
+    container_name: txv6-dev
+    volumes:
+      - ..:/txv6:cached
+    command: sleep infinity
+    stdin_open: true
+    tty: true
+    working_dir: /txv6

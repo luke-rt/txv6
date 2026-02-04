@@ -1,0 +1,8 @@
+CompileFlags:
+  Remove:
+    - -march=rv64gc
+    - -mcmodel=medany
+    - -mno-relax
+    - -fno-pie
+    - -no-pie
+  Compiler: clang
