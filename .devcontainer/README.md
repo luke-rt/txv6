@@ -33,28 +33,18 @@ make clean
 # Build xv6
 make
 
-# Run xv6 in QEMU (note: QEMU graphical output won't work in Docker)
+# Run txv6 in qemu (no graphical output)
 make qemu
 
-# Run xv6 with QEMU in non-graphical mode
-make qemu-nox
+# Run txv6 in gdb mode
+make qemu-gdb
 ```
 
-To exit QEMU, press `Ctrl-A` then `X`.
+## Exiting QEMU
 
-## Development Workflow
+Run `make qemu` → Press `Ctrl-a`, then `x`
 
-With VS Code Dev Containers:
-1. Edit files directly in VS Code with full IntelliSense support
-2. Use the integrated terminal to build: `make`
-3. Run xv6: `make qemu-nox`
-4. Debug using VS Code's debugging features with the RISC-V toolchain
-
-Manual Docker workflow:
-1. Edit files on your host machine
-2. Changes are immediately available in the container via volume mount
-3. Build and test inside the container
-4. Use `make qemu-gdb` in one terminal and `riscv64-unknown-elf-gdb` in another for debugging
+`Ctrl-a` won't cause anything to happen until you press `x`
 
 ## What's Included
 
@@ -68,7 +58,6 @@ Manual Docker workflow:
 
 ## Notes
 
-- The initial build takes significant time (~30-60 minutes) due to compiling the RISC-V toolchain
+- The initial build takes significant time (~30 minutes) due to compiling the RISC-V toolchain
 - The Docker image is quite large (~5-6 GB) due to the toolchain
-- QEMU graphical output is not available in Docker; use `make qemu-nox` for console-only mode
 - Your workspace files are mounted into the container, so changes persist on your host machine
