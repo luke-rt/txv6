@@ -46,7 +46,7 @@ WORKDIR /opt
 RUN git clone --recursive https://github.com/riscv/riscv-gnu-toolchain && \
     cd riscv-gnu-toolchain && \
     ./configure --prefix=/opt/riscv && \
-    make && \
+    make -j$(nproc) && \
     cd .. && \
     rm -rf riscv-gnu-toolchain
 
