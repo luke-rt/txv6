@@ -46,13 +46,9 @@ WORKDIR /opt
 RUN git clone --recursive https://github.com/riscv/riscv-gnu-toolchain && \
     cd riscv-gnu-toolchain && \
     ./configure --prefix=/opt/riscv && \
-    make -j$(nproc) && \
+    make && \
     cd .. && \
     rm -rf riscv-gnu-toolchain
-# RUN apt-get update && apt-get install -y \
-#     gcc-riscv64-linux-gnu \
-#     g++-riscv64-linux-gnu \
-#     binutils-riscv64-linux-gnu
 
 # Install QEMU with RISC-V support
 RUN wget https://download.qemu.org/qemu-8.1.0.tar.xz && \
