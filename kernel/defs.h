@@ -14,6 +14,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct transaction;
 
 // bio.c
 void binit(void);
@@ -186,6 +187,11 @@ void plic_complete(int);
 void virtio_disk_init(void);
 void virtio_disk_rw(struct buf *, int);
 void virtio_disk_intr(void);
+
+// tx.c
+struct transaction *txalloc();
+void txfree(struct transaction *tx);
+struct inode_data *txshadow(struct inode *ip);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))

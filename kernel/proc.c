@@ -132,7 +132,7 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
-  p->tx = txalloc(p);
+  p->tx = txalloc();
 
   return p;
 }

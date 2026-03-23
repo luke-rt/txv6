@@ -11,8 +11,6 @@
 #define MAX_WORKSET 16
 #define MAX_UNDO_OPS 16
 
-struct proc;
-
 // Metadata for modified kernel objects specific to a transaction
 struct workset_entry {
   void *header;       // pointer to stable object header (sort key)
@@ -53,14 +51,5 @@ struct transaction {
 struct tx_data {
   // transaction metadata for kernel objects, ie conflict detection
 };
-
-// Kernel level allocation/free functions
-struct transaction *txalloc(struct proc *p);
-void txfree(struct transaction *tx);
-
-// Transaction system calls
-uint64 sys_txbegin(void);
-uint64 sys_txcommit(void);
-uint64 sys_txabort(void);
 
 #endif
