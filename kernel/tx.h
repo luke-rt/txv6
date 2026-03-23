@@ -42,8 +42,9 @@ struct transaction {
 
   struct trapframe *saved_tf;  // saved registers
 
-  struct workset_entry workset[MAX_WORKSET];  // modified objects
-  int workset_size;                           // num modified objects
+  struct workset_entry
+      workset[MAX_WORKSET];  // modified objects sorted by header addr
+  int workset_size;          // num modified objects
 
   struct undo_op undo_ops[MAX_UNDO_OPS];  // undo operations, called on ABORT
   int n_undo_ops;                         // num undo opeartions

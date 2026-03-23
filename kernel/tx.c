@@ -5,7 +5,7 @@
 struct transaction *txalloc(struct proc *p) {
   struct transaction *tx = (struct transaction *)kalloc();
   tx->retry_count = 0;
-  tx->start_time = ticks;
+  tx->start_time = 0;
   tx->status = TX_INACTIVE;
 
   return tx;
@@ -16,10 +16,22 @@ void txfree(struct transaction *tx) {
 }
 
 int txcommit(struct transaction *tx) {
+  for (int i = 0; i < tx->workset_size; i++) {
+    struct workset_entry *entry = &tx->workset[i];
+    entry->lock_fn(&tx->workset[i]);
+    entry->commit_fn(entry);
+    entry->unlock_fn(&tx->workset[i]);
+  }
   return 0;
 }
 
 int txabort(struct transaction *tx) {
+  for (int i = 0; i < tx->workset_size; i++) {
+    struct workset_entry *entry = &tx->workset[i];
+    entry->lock_fn(&tx->workset[i]);
+    entry->abort_fn(entry);
+    entry->unlock_fn(&tx->workset[i]);
+  }
   return 0;
 }
 
@@ -29,7 +41,9 @@ uint64 sys_txbegin(void) {
 
   struct proc *p = myproc();
   p->tx->status = TX_ACTIVE;
-  p->tx->start_time = 0;
+  acquire(&tickslock);
+  p->tx->start_time = ticks;
+  release(&tickslock);
   p->tx->retry_count = 0;
 
   return 0;
