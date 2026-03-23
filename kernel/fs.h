@@ -58,17 +58,11 @@ struct dinode {
 // Directory is a file containing a sequence of dirent structures.
 #define DIRSIZ 14
 
-// swappable payload
-struct dirent_data {
-  ushort inum;
-  char name[DIRSIZ] __attribute__((nonstring));
-};
-
 // The name field may have DIRSIZ characters and not end in a NUL
 // character.
 struct dirent {
-  struct tx_data xobj;
-  struct dirent_data *data;
+  ushort inum;
+  char name[DIRSIZ] __attribute__((nonstring));
 };
 
 #endif
