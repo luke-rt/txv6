@@ -1,9 +1,14 @@
 #include "tx.h"
-#include "kernel/defs.h"
+#include "defs.h"
+#include "file.h"
 #include "proc.h"
 
-struct transaction *txalloc(struct proc *p) {
+struct transaction *txalloc() {
   struct transaction *tx = (struct transaction *)kalloc();
+  if (tx == 0)
+    return 0;
+
+  memset(tx, 0, sizeof(*tx));
   tx->retry_count = 0;
   tx->start_time = 0;
   tx->status = TX_INACTIVE;
@@ -15,49 +20,42 @@ void txfree(struct transaction *tx) {
   kfree((void *)tx);
 }
 
-int txcommit(struct transaction *tx) {
+// Takes an inode, gets or creates a shadow copy and workset entry
+// Eventually make this generic for any kernel object header
+struct inode_data *txshadow(struct inode *ip) {
+  struct proc *p = myproc();
+  struct transaction *tx = p->tx;
+
+  if (tx->status != TX_ACTIVE)
+    return 0;  // transaction not active
+
+  // get existing shadow copy if exists
   for (int i = 0; i < tx->workset_size; i++) {
-    struct workset_entry *entry = &tx->workset[i];
-    entry->lock_fn(&tx->workset[i]);
-    entry->commit_fn(entry);
-    entry->unlock_fn(&tx->workset[i]);
+    if (tx->workset[i].header == ip) {
+      return tx->workset[i].shadow_data;
+    }
   }
-  return 0;
-}
 
-int txabort(struct transaction *tx) {
-  for (int i = 0; i < tx->workset_size; i++) {
-    struct workset_entry *entry = &tx->workset[i];
-    entry->lock_fn(&tx->workset[i]);
-    entry->abort_fn(entry);
-    entry->unlock_fn(&tx->workset[i]);
-  }
-  return 0;
-}
+  if (tx->workset_size >= MAX_WORKSET)
+    return 0;  // workset full, should abort transaction
 
-uint64 sys_txbegin(void) {
-  int flags;
-  argint(0, &flags);  // get first argument from a0
+  // Create new shadow copy
+  struct workset_entry *e = &tx->workset[tx->workset_size++];
+  e->header = ip;
+  e->read_only = 0;
+  e->shadow_data = kalloc();
+  if (e->shadow_data == 0)
+    panic("txshadow: out of memory");
+  // copy current stable data into shadow
+  ilock(ip);
+  e->stable_data = ip->data;
+  iunlock(ip);
+  memmove(e->shadow_data, e->stable_data, sizeof(struct inode_data));
 
-  struct proc *p = myproc();
-  p->tx->status = TX_ACTIVE;
-  acquire(&tickslock);
-  p->tx->start_time = ticks;
-  release(&tickslock);
-  p->tx->retry_count = 0;
+  // e->commit_fn
+  // e->abort_fn
+  // e->lock_fn
+  // e->unlock_fn
 
-  return 0;
-}
-
-uint64 sys_txcommit(void) {
-  struct proc *p = myproc();
-  if (p->tx->status != TX_ACTIVE)
-    return -1;
-
-  return txcommit(p->tx);  // returns 0 on success, -1 on conflict
-}
-
-uint64 sys_txabort(void) {
-  struct proc *p = myproc();
-  return txabort(p->tx);
+  return e->shadow_data;
 }

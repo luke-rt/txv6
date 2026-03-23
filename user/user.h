@@ -26,7 +26,7 @@ int pause(int);
 int uptime(void);
 int txbegin(void);
 int txcommit(void);
-void txabort(void);
+int txabort(void);
 
 // ulib.c
 int stat(const char *, struct stat *);
