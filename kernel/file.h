@@ -4,6 +4,7 @@
 #include "types.h"
 #include "fs.h"
 #include "sleeplock.h"
+#include "tx.h"
 
 struct file {
   enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE } type;
@@ -20,7 +21,33 @@ struct file {
 #define minor(dev) ((dev)&0xFFFF)
 #define mkdev(m, n) ((uint)((m) << 16 | (n)))
 
+// in-memory copy of an inode. Transaction specific
+struct inode_data {
+  short type;
+  short major;
+  short minor;
+  short nlink;  // link/unlink modify this
+  uint size;
+  uint addrs[NDIRECT + 1];
+};
+
 // in-memory copy of an inode
+// struct inode {
+//   uint dev;               // Device number
+//   uint inum;              // Inode number
+//   int ref;                // Reference count
+//   struct sleeplock lock;  // protects everything below here
+//   int valid;              // inode has been read from disk?
+
+//   short type;  // copy of disk inode
+//   short major;
+//   short minor;
+//   short nlink;
+//   uint size;
+//   uint addrs[NDIRECT + 1];
+// };
+
+// True in-memory handle for inode, shared between transactions
 struct inode {
   uint dev;               // Device number
   uint inum;              // Inode number
@@ -28,12 +55,12 @@ struct inode {
   struct sleeplock lock;  // protects everything below here
   int valid;              // inode has been read from disk?
 
-  short type;  // copy of disk inode
-  short major;
-  short minor;
-  short nlink;
-  uint size;
-  uint addrs[NDIRECT + 1];
+  // see tx.h
+  struct tx_data xobj;
+
+  // pointer to the transactional payload
+  // on commit only this pointer is swapped
+  struct inode_data *data;
 };
 
 // map major device number to device functions.

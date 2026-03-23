@@ -2,6 +2,7 @@
 #define _FS_H_
 
 #include "types.h"
+#include "tx.h"
 
 // On-disk file system format.
 // Both the kernel and user programs use this header file.
