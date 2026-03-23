@@ -24,6 +24,9 @@ int getpid(void);
 char *sys_sbrk(int, int);
 int pause(int);
 int uptime(void);
+int txbegin(void);
+int txcommit(void);
+void txabort(void);
 
 // ulib.c
 int stat(const char *, struct stat *);
