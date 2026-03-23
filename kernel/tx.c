@@ -52,6 +52,7 @@ struct inode_data *txshadow(struct inode *ip) {
   iunlock(ip);
   memmove(e->shadow_data, e->stable_data, sizeof(struct inode_data));
 
+  // TODO
   // e->commit_fn
   // e->abort_fn
   // e->lock_fn
