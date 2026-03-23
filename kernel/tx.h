@@ -15,7 +15,13 @@ struct transaction {
   uint64 start_time;
 };
 
+// Kernel level allocation/free functions
 struct transaction *txalloc(struct proc *p);
 void txfree(struct transaction *tx);
+
+// Transaction system calls
+uint64 sys_txbegin(void);
+uint64 sys_txcommit(void);
+uint64 sys_txabort(void);
 
 #endif
