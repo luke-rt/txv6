@@ -30,15 +30,24 @@ uint64 sys_txcommit(void) {
   if (p->tx->status != TX_ACTIVE)
     return -1;
 
+  // acquires all locks, then commits all objects, then unlocks
+  // TODO: handle case where cannot acquire a lock
   for (int i = 0; i < p->tx->workset_size; i++) {
     struct workset_entry *entry = &p->tx->workset[i];
     if (entry->lock_fn)
       entry->lock_fn(entry);
+  }
+  for (int i = 0; i < p->tx->workset_size; i++) {
+    struct workset_entry *entry = &p->tx->workset[i];
     if (entry->commit_fn)
       entry->commit_fn(entry);
+  }
+  for (int i = 0; i < p->tx->workset_size; i++) {
+    struct workset_entry *entry = &p->tx->workset[i];
     if (entry->unlock_fn)
       entry->unlock_fn(entry);
   }
+
   p->tx->status = TX_COMMITTED;
   p->tx->workset_size = 0;
   p->tx->n_undo_ops = 0;
@@ -52,12 +61,20 @@ uint64 sys_txabort(void) {
   if (p->tx->status != TX_ACTIVE)
     return -1;
 
+  // acquires all locks, then aborts all objects, then unlocks
+  // TODO: handle case where cannot acquire a lock
   for (int i = 0; i < p->tx->workset_size; i++) {
     struct workset_entry *entry = &p->tx->workset[i];
     if (entry->lock_fn)
       entry->lock_fn(entry);
-    if (entry->abort_fn)
+  }
+  for (int i = 0; i < p->tx->workset_size; i++) {
+    struct workset_entry *entry = &p->tx->workset[i];
+    if (entry->commit_fn)
       entry->abort_fn(entry);
+  }
+  for (int i = 0; i < p->tx->workset_size; i++) {
+    struct workset_entry *entry = &p->tx->workset[i];
     if (entry->unlock_fn)
       entry->unlock_fn(entry);
   }
