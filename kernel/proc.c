@@ -132,6 +132,8 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  p->tx = txalloc(p);
+
   return p;
 }
 
@@ -153,6 +155,10 @@ static void freeproc(struct proc *p) {
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  if (p->tx) {
+    txfree(p->tx);
+  }
+  p->tx = 0;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -610,8 +616,8 @@ int either_copyin(void *dst, int user_src, uint64 src, uint64 len) {
 // No lock to avoid wedging a stuck machine further.
 void procdump(void) {
   static char *states[] = {
-      [UNUSED] "unused",   [USED] "used",      [SLEEPING] "sleep ",
-      [RUNNABLE] "runble", [RUNNING] "run   ", [ZOMBIE] "zombie"};
+      [UNUSED] = "unused",   [USED] = "used",      [SLEEPING] = "sleep ",
+      [RUNNABLE] = "runble", [RUNNING] = "run   ", [ZOMBIE] = "zombie"};
   struct proc *p;
   char *state;
 

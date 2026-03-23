@@ -6,6 +6,7 @@
 #include "fs.h"
 #include "param.h"
 #include "riscv.h"
+#include "tx.h"
 
 // Saved registers for kernel context switches.
 struct context {
@@ -113,6 +114,7 @@ struct proc {
   struct file *ofile[NOFILE];   // Open files
   struct inode *cwd;            // Current directory
   char name[16];                // Process name (debugging)
+  struct transaction *tx;       // Transaction state
 };
 
 #endif
