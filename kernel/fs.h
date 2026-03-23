@@ -2,6 +2,7 @@
 #define _FS_H_
 
 #include "types.h"
+#include "tx.h"
 
 // On-disk file system format.
 // Both the kernel and user programs use this header file.
@@ -57,11 +58,17 @@ struct dinode {
 // Directory is a file containing a sequence of dirent structures.
 #define DIRSIZ 14
 
+// swappable payload
+struct dirent_data {
+  ushort inum;
+  char name[DIRSIZ] __attribute__((nonstring));
+};
+
 // The name field may have DIRSIZ characters and not end in a NUL
 // character.
 struct dirent {
-  ushort inum;
-  char name[DIRSIZ] __attribute__((nonstring));
+  struct tx_data xobj;
+  struct dirent_data *data;
 };
 
 #endif
