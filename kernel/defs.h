@@ -192,6 +192,7 @@ void virtio_disk_intr(void);
 struct transaction *txalloc();
 void txfree(struct transaction *tx);
 struct inode_data *txshadow(struct inode *ip);
+struct inode_data *tx_idata(struct inode *ip);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))

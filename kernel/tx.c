@@ -44,6 +44,15 @@ void inode_unlock(struct workset_entry *e) {
   iunlock(ip);
 }
 
+// Returns the appropriate inode_data for the current context:
+// shadow copy if inside an active transaction, stable data otherwise
+struct inode_data *tx_idata(struct inode *ip) {
+  struct proc *p = myproc();
+  if (p->tx && p->tx->status == TX_ACTIVE)
+    return txshadow(ip);
+  return ip->data;
+}
+
 // Takes an inode, gets or creates a shadow copy and workset entry
 // Eventually make this generic for any kernel object header
 struct inode_data *txshadow(struct inode *ip) {
