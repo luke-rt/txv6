@@ -15,6 +15,7 @@ uint64 sys_txbegin(void) {
   p->tx->status = TX_ACTIVE;
   p->tx->workset_size = 0;
   p->tx->n_undo_ops = 0;
+  p->tx->n_deferred_iputs = 0;
   acquire(&tickslock);
   p->tx->start_time = ticks;
   release(&tickslock);
@@ -29,6 +30,8 @@ uint64 sys_txcommit(void) {
     return -1;
   if (p->tx->status != TX_ACTIVE)
     return -1;
+
+  p->tx->status = TX_COMMITTED;
 
   // acquires all locks, then commits all objects, then unlocks
   // TODO: handle case where cannot acquire a lock
@@ -48,9 +51,11 @@ uint64 sys_txcommit(void) {
       entry->unlock_fn(entry);
   }
 
-  p->tx->status = TX_COMMITTED;
   p->tx->workset_size = 0;
   p->tx->n_undo_ops = 0;
+
+  tx_flush_iputs(p->tx);
+
   return 0;
 }
 
@@ -81,5 +86,8 @@ uint64 sys_txabort(void) {
   p->tx->status = TX_ABORTED;
   p->tx->workset_size = 0;
   p->tx->n_undo_ops = 0;
+
+  tx_flush_iputs(p->tx);
+
   return 0;
 }

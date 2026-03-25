@@ -27,6 +27,9 @@ void inode_commit(struct workset_entry *e) {
 
   // copy shadow data back to stable data
   memmove(&ip->data, shadow, sizeof(struct inode_data));
+
+  // write to disk — status is TX_COMMITTED so iupdate won't skip
+  iupdate(ip);
 }
 
 void inode_abort(struct workset_entry *e) {
@@ -42,6 +45,24 @@ void inode_lock(struct workset_entry *e) {
 void inode_unlock(struct workset_entry *e) {
   struct inode *ip = (struct inode *)e->header;
   iunlock(ip);
+}
+
+void tx_defer_iput(struct inode *ip) {
+  struct proc *p = myproc();
+  struct transaction *tx = p->tx;
+
+  if (tx->n_deferred_iputs >= MAX_DEFERRED_IPUTS)
+    panic("tx_defer_iput: too many deferred iputs");
+
+  tx->deferred_iputs[tx->n_deferred_iputs++] = ip;
+}
+
+void tx_flush_iputs(struct transaction *tx) {
+  for (int i = 0; i < tx->n_deferred_iputs; i++) {
+    iput((struct inode *)tx->deferred_iputs[i]);
+    tx->deferred_iputs[i] = 0;
+  }
+  tx->n_deferred_iputs = 0;
 }
 
 // Returns the appropriate inode_data for the current context:

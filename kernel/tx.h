@@ -10,6 +10,7 @@
 
 #define MAX_WORKSET 16
 #define MAX_UNDO_OPS 16
+#define MAX_DEFERRED_IPUTS 16
 
 // Metadata for modified kernel objects specific to a transaction
 struct workset_entry {
@@ -46,6 +47,9 @@ struct transaction {
 
   struct undo_op undo_ops[MAX_UNDO_OPS];  // undo operations, called on ABORT
   int n_undo_ops;                         // num undo opeartions
+
+  void *deferred_iputs[MAX_DEFERRED_IPUTS];  // inodes to iput after commit/abort
+  int n_deferred_iputs;
 };
 
 struct tx_data {

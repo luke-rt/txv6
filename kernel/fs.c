@@ -214,6 +214,11 @@ struct inode *ialloc(uint dev, short type) {
 void iupdate(struct inode *ip) {
   struct buf *bp;
   struct dinode *dip;
+  struct proc *p = myproc();
+
+  // defer disk write until transaction is no longer active
+  if (p->tx && p->tx->status == TX_ACTIVE)
+    return;
 
   bp = bread(ip->dev, IBLOCK(ip->inum, sb));
   dip = (struct dinode *)bp->data + ip->inum % IPB;
@@ -321,6 +326,15 @@ void iunlock(struct inode *ip) {
 // All calls to iput() must be inside a transaction in
 // case it has to free the inode.
 void iput(struct inode *ip) {
+  struct proc *p = myproc();
+
+  // defer iput until after transaction finishes so reclaim doesn't destroy an
+  // inode mid-transaction
+  if (p->tx && p->tx->status == TX_ACTIVE) {
+    tx_defer_iput(ip);
+    return;
+  }
+
   acquire(&itable.lock);
 
   if (ip->ref == 1 && ip->valid && ip->data->nlink == 0) {
@@ -431,27 +445,33 @@ void itrunc(struct inode *ip) {
   int i, j;
   struct buf *bp;
   uint *a;
+  struct inode_data *d = tx_idata(ip);
+  struct proc *p = myproc();
+  int tx_active = p->tx && p->tx->status == TX_ACTIVE;
 
   for (i = 0; i < NDIRECT; i++) {
-    if (ip->data->addrs[i]) {
-      bfree(ip->dev, ip->data->addrs[i]);
-      ip->data->addrs[i] = 0;
+    if (d->addrs[i]) {
+      if (!tx_active)
+        bfree(ip->dev, d->addrs[i]);
+      d->addrs[i] = 0;
     }
   }
 
-  if (ip->data->addrs[NDIRECT]) {
-    bp = bread(ip->dev, ip->data->addrs[NDIRECT]);
-    a = (uint *)bp->data;
-    for (j = 0; j < NINDIRECT; j++) {
-      if (a[j])
-        bfree(ip->dev, a[j]);
+  if (d->addrs[NDIRECT]) {
+    if (!tx_active) {
+      bp = bread(ip->dev, d->addrs[NDIRECT]);
+      a = (uint *)bp->data;
+      for (j = 0; j < NINDIRECT; j++) {
+        if (a[j])
+          bfree(ip->dev, a[j]);
+      }
+      brelse(bp);
+      bfree(ip->dev, d->addrs[NDIRECT]);
     }
-    brelse(bp);
-    bfree(ip->dev, ip->data->addrs[NDIRECT]);
-    ip->data->addrs[NDIRECT] = 0;
+    d->addrs[NDIRECT] = 0;
   }
 
-  ip->data->size = 0;
+  d->size = 0;
   iupdate(ip);
 }
 
