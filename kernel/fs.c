@@ -328,10 +328,8 @@ void iunlock(struct inode *ip) {
 void iput(struct inode *ip) {
   struct proc *p = myproc();
 
-  // defer iput until after transaction finishes so reclaim doesn't destroy an
-  // inode mid-transaction
+  // defer iput to tx commit
   if (p->tx && p->tx->status == TX_ACTIVE) {
-    tx_defer_iput(ip);
     return;
   }
 
@@ -402,7 +400,7 @@ void ireclaim(int dev) {
 static uint bmap(struct inode *ip, uint bn) {
   uint addr, *a;
   struct buf *bp;
-  struct inode_data *d = tx_idata(ip);
+  struct inode_data *d = idata(ip);
 
   if (bn < NDIRECT) {
     if ((addr = d->addrs[bn]) == 0) {
@@ -445,7 +443,7 @@ void itrunc(struct inode *ip) {
   int i, j;
   struct buf *bp;
   uint *a;
-  struct inode_data *d = tx_idata(ip);
+  struct inode_data *d = idata(ip);
   struct proc *p = myproc();
   int tx_active = p->tx && p->tx->status == TX_ACTIVE;
 
@@ -478,7 +476,7 @@ void itrunc(struct inode *ip) {
 // Copy stat information from inode.
 // Caller must hold ip->lock.
 void stati(struct inode *ip, struct stat *st) {
-  struct inode_data *d = tx_idata(ip);
+  struct inode_data *d = idata(ip);
   st->dev = ip->dev;
   st->ino = ip->inum;
   st->type = d->type;
@@ -493,7 +491,7 @@ void stati(struct inode *ip, struct stat *st) {
 int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n) {
   uint tot, m;
   struct buf *bp;
-  struct inode_data *d = tx_idata(ip);
+  struct inode_data *d = idata(ip);
 
   if (off > d->size || off + n < off)
     return 0;
@@ -526,7 +524,7 @@ int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n) {
 int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n) {
   uint tot, m;
   struct buf *bp;
-  struct inode_data *d = tx_idata(ip);
+  struct inode_data *d = idata(ip);
 
   if (off > d->size || off + n < off)
     return -1;
@@ -570,7 +568,7 @@ struct inode *dirlookup(struct inode *dp, char *name, uint *poff) {
   uint off, inum;
   struct dirent de;
 
-  struct inode_data *d = tx_idata(dp);
+  struct inode_data *d = idata(dp);
 
   if (d->type != T_DIR)
     panic("dirlookup not DIR");
@@ -606,7 +604,7 @@ int dirlink(struct inode *dp, char *name, uint inum) {
   }
 
   // Look for an empty dirent.
-  struct inode_data *d = tx_idata(dp);
+  struct inode_data *d = idata(dp);
   for (off = 0; off < d->size; off += sizeof(de)) {
     if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
       panic("dirlink read");
@@ -673,7 +671,7 @@ static struct inode *namex(char *path, int nameiparent, char *name) {
 
   while ((path = skipelem(path, name)) != 0) {
     ilock(ip);
-    if (tx_idata(ip)->type != T_DIR) {
+    if (idata(ip)->type != T_DIR) {
       iunlockput(ip);
       return 0;
     }

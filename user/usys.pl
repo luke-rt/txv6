@@ -45,3 +45,4 @@ entry("uptime");
 entry("txbegin");
 entry("txcommit");
 entry("txabort");
+entry("txstatus");

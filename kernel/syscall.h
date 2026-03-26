@@ -26,5 +26,6 @@
 #define SYS_txbegin 22
 #define SYS_txcommit 23
 #define SYS_txabort 24
+#define SYS_txstatus 25
 
 #endif

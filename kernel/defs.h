@@ -15,6 +15,7 @@ struct sleeplock;
 struct stat;
 struct superblock;
 struct transaction;
+struct tx_ops;
 
 // bio.c
 void binit(void);
@@ -191,10 +192,8 @@ void virtio_disk_intr(void);
 // tx.c
 struct transaction *txalloc();
 void txfree(struct transaction *tx);
-struct inode_data *txshadow(struct inode *ip);
-struct inode_data *tx_idata(struct inode *ip);
-void tx_defer_iput(struct inode *ip);
-void tx_flush_iputs(struct transaction *tx);
+struct inode_data *idata(struct inode *ip);
+void *txdata(void *header, int read_only, struct tx_ops *ops);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))

@@ -120,7 +120,7 @@ uint64 sys_link(void) {
   }
 
   ilock(ip);
-  struct inode_data *ipd = tx_idata(ip);
+  struct inode_data *ipd = idata(ip);
   if (ipd->type == T_DIR) {
     iunlockput(ip);
     end_op();
@@ -147,7 +147,7 @@ uint64 sys_link(void) {
 
 bad:
   ilock(ip);
-  ipd = tx_idata(ip);
+  ipd = idata(ip);
   ipd->nlink--;
   iupdate(ip);
   iunlockput(ip);
@@ -160,7 +160,7 @@ static int isdirempty(struct inode *dp) {
   int off;
   struct dirent de;
 
-  for (off = 2 * sizeof(de); off < tx_idata(dp)->size; off += sizeof(de)) {
+  for (off = 2 * sizeof(de); off < idata(dp)->size; off += sizeof(de)) {
     if (readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
       panic("isdirempty: readi");
     if (de.inum != 0)
@@ -194,7 +194,7 @@ uint64 sys_unlink(void) {
     goto bad;
   ilock(ip);
 
-  struct inode_data *ipd = tx_idata(ip);
+  struct inode_data *ipd = idata(ip);
   if (ipd->nlink < 1)
     panic("unlink: nlink < 1");
   if (ipd->type == T_DIR && !isdirempty(ip)) {
@@ -206,7 +206,7 @@ uint64 sys_unlink(void) {
   if (writei(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
     panic("unlink: writei");
   if (ipd->type == T_DIR) {
-    tx_idata(dp)->nlink--;
+    idata(dp)->nlink--;
     iupdate(dp);
   }
   iunlockput(dp);
@@ -237,7 +237,7 @@ static struct inode *create(char *path, short type, short major, short minor) {
   if ((ip = dirlookup(dp, name, 0)) != 0) {
     iunlockput(dp);
     ilock(ip);
-    struct inode_data *ipd = tx_idata(ip);
+    struct inode_data *ipd = idata(ip);
     if (type == T_FILE && (ipd->type == T_FILE || ipd->type == T_DEVICE))
       return ip;
     iunlockput(ip);
@@ -250,7 +250,7 @@ static struct inode *create(char *path, short type, short major, short minor) {
   }
 
   ilock(ip);
-  struct inode_data *ipd = tx_idata(ip);
+  struct inode_data *ipd = idata(ip);
   ipd->major = major;
   ipd->minor = minor;
   ipd->nlink = 1;
@@ -267,7 +267,7 @@ static struct inode *create(char *path, short type, short major, short minor) {
 
   if (type == T_DIR) {
     // now that success is guaranteed:
-    tx_idata(dp)->nlink++;  // for ".."
+    idata(dp)->nlink++;  // for ".."
     iupdate(dp);
   }
 
@@ -309,7 +309,7 @@ uint64 sys_open(void) {
       return -1;
     }
     ilock(ip);
-    struct inode_data *ipd = tx_idata(ip);
+    struct inode_data *ipd = idata(ip);
     if (ipd->type == T_DIR && omode != O_RDONLY) {
       iunlockput(ip);
       end_op();
@@ -317,9 +317,8 @@ uint64 sys_open(void) {
     }
   }
 
-  struct inode_data *ipd = tx_idata(ip);
-  if (ipd->type == T_DEVICE &&
-      (ipd->major < 0 || ipd->major >= NDEV)) {
+  struct inode_data *ipd = idata(ip);
+  if (ipd->type == T_DEVICE && (ipd->major < 0 || ipd->major >= NDEV)) {
     iunlockput(ip);
     end_op();
     return -1;
@@ -397,7 +396,7 @@ uint64 sys_chdir(void) {
     return -1;
   }
   ilock(ip);
-  if (tx_idata(ip)->type != T_DIR) {
+  if (idata(ip)->type != T_DIR) {
     iunlockput(ip);
     end_op();
     return -1;
