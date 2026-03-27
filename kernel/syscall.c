@@ -93,6 +93,7 @@ extern uint64 sys_close(void);
 extern uint64 sys_txbegin(void);
 extern uint64 sys_txcommit(void);
 extern uint64 sys_txabort(void);
+extern uint64 sys_txstatus(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -109,6 +110,7 @@ static uint64 (*syscalls[])(void) = {
     [SYS_link] = sys_link,         [SYS_mkdir] = sys_mkdir,
     [SYS_close] = sys_close,       [SYS_txbegin] = sys_txbegin,
     [SYS_txcommit] = sys_txcommit, [SYS_txabort] = sys_txabort,
+    [SYS_txstatus] = sys_txstatus,
 };
 
 void syscall(void) {

@@ -13,12 +13,18 @@
 
 // Metadata for modified kernel objects specific to a transaction
 struct workset_entry {
-  void *header;       // pointer to stable object header (sort key)
-  void *stable_data;  // original data
+  void *header;  // pointer to stable object header (sort key)
+  // void *stable_data;  // original data
   void *shadow_data;  // private modified copy of data
   int read_only;  // if set to 1, only read from data, no shadow objects needed
 
-  // type-specific operations, set when entry is created
+  struct tx_ops *ops;  // operations for this object type
+};
+
+// Kernel object type specific metadata/operations
+struct tx_ops {
+  int data_size;        // size of data for this object
+  int data_ptr_offset;  // offset of pointer to data within object
   void (*commit_fn)(struct workset_entry *);
   void (*abort_fn)(struct workset_entry *);
   void (*lock_fn)(struct workset_entry *);

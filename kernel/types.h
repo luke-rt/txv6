@@ -12,4 +12,8 @@ typedef unsigned long uint64;
 
 typedef uint64 pde_t;
 
+#ifndef offsetof
+#define offsetof(type, member) ((uint64)(&((type *)0)->member))
+#endif
+
 #endif
