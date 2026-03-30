@@ -81,8 +81,12 @@ void *txdata(void *header, int read_only, struct tx_ops *ops) {
 static void inode_commit(struct workset_entry *e) {
   struct inode *ip = (struct inode *)e->header;
   begin_op();
+
   // write to disk — status is TX_COMMITTED so iupdate won't skip
-  iupdate(ip);
+  if (e->read_only == 1) {
+    iupdate(ip);
+  }
+
   // Decr reference count
   iput(ip);
   end_op();
@@ -118,6 +122,10 @@ static struct tx_ops inode_ops = {
 // should only be called with ilock
 struct inode_data *idata(struct inode *ip) {
   return (struct inode_data *)txdata(ip, 0, &inode_ops);
+}
+
+struct inode_data *idata_ro(struct inode *ip) {
+  return (struct inode_data *)txdata(ip, 1, &inode_ops);
 }
 
 //

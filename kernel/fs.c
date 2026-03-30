@@ -674,6 +674,7 @@ static struct inode *namex(char *path, int nameiparent, char *name) {
   while ((path = skipelem(path, name)) != 0) {
     ilock(ip);
     if (idata(ip)->type != T_DIR) {
+      idata_ro(ip);  // calls txdata -> txshadow, which adds to workset
       iunlockput(ip);
       return 0;
     }
@@ -683,9 +684,11 @@ static struct inode *namex(char *path, int nameiparent, char *name) {
       return ip;
     }
     if ((next = dirlookup(ip, name, 0)) == 0) {
+      idata_ro(ip);
       iunlockput(ip);
       return 0;
     }
+    idata_ro(ip);
     iunlockput(ip);
     ip = next;
   }

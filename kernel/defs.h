@@ -195,6 +195,7 @@ struct transaction *txalloc();
 void txfree(struct transaction *tx);
 void *txdata(void *header, int read_only, struct tx_ops *ops);
 struct inode_data *idata(struct inode *ip);
+struct inode_data *idata_ro(struct inode *ip);
 struct buf_data *bdata(struct buf *bp);
 
 // number of elements in fixed-size array
