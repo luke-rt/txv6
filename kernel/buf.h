@@ -14,7 +14,14 @@ struct buf {
   uint refcnt;
   struct buf *prev;  // LRU cache list
   struct buf *next;
-  uchar data[BSIZE];
+
+  // pointer to the transactional payload
+  // on commit only this pointer is swapped
+  struct buf_data *data;
+};
+
+struct buf_data {
+  uchar bytes[BSIZE];
 };
 
 #endif
