@@ -78,7 +78,6 @@ void *txdata(void *header, int read_only, struct tx_ops *ops) {
 // INODE specific transactions
 //
 
-// Must be called when already holding the lock
 static void inode_commit(struct workset_entry *e) {
   struct inode *ip = (struct inode *)e->header;
   begin_op();
@@ -125,17 +124,56 @@ struct inode_data *idata(struct inode *ip) {
 // Kernel Buffer specific transactions
 //
 
+static void buf_commit(struct workset_entry *e) {
+  struct buf *bp = (struct buf *)e->header;
+
+  begin_op();
+
+  acquiresleep(&bp->lock);
+  log_write(bp);
+  releasesleep(&bp->lock);
+
+  end_op();
+
+  bunpin(bp);
+}
+static void buf_abort(struct workset_entry *e) {
+  if (e->shadow_data)
+    kfree(e->shadow_data);
+
+  bunpin((struct buf *)e->header);
+}
+
+static void buf_lock(struct workset_entry *e) {
+  struct buf *bp = (struct buf *)e->header;
+  acquiresleep(&bp->lock);
+}
+
+static void buf_unlock(struct workset_entry *e) {
+  struct buf *bp = (struct buf *)e->header;
+  releasesleep(&bp->lock);
+}
+
 static struct tx_ops buffer_ops = {
     .data_size = sizeof(struct buf_data),
     .data_ptr_offset = offsetof(struct buf, data),
-    .commit_fn = 0,
-    .abort_fn = 0,
-    .lock_fn = 0,
-    .unlock_fn = 0};
+    .commit_fn = buf_commit,
+    .abort_fn = buf_abort,
+    .lock_fn = buf_lock,
+    .unlock_fn = buf_unlock};
 
 // Returns the appropriate buf_data for the current context:
 // shadow copy if inside an active transaction, stable data otherwise
-// should only be called with ilock
+// Need to pin if new shadow created, otherwise buf might get flushed
+// before transaction is completed
 struct buf_data *bdata(struct buf *bp) {
-  return (struct buf_data *)txdata(bp, 0, &buffer_ops);
+  struct proc *p = myproc();
+  if (p && p->tx && p->tx->status == TX_ACTIVE) {
+    int old_size = p->tx->workset_size;
+    struct buf_data *d = (struct buf_data *)txshadow(bp, 0, &buffer_ops);
+    if (p->tx->workset_size > old_size)
+      bpin(bp);  // new shadow was created
+    return d;
+  }
+  return bp->data;
 }

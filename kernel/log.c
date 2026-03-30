@@ -6,6 +6,8 @@
 #include "sleeplock.h"
 #include "fs.h"
 #include "buf.h"
+#include "tx.h"
+#include "proc.h"
 
 // Simple logging that allows concurrent FS system calls.
 //
@@ -115,6 +117,10 @@ static void recover_from_log(void) {
 
 // called at the start of each FS system call.
 void begin_op(void) {
+  struct proc *p = myproc();
+  if (p->tx && p->tx->status == TX_ACTIVE)
+    return;
+
   acquire(&log.lock);
   while (1) {
     if (log.committing) {
@@ -133,6 +139,10 @@ void begin_op(void) {
 // called at the end of each FS system call.
 // commits if this was the last outstanding operation.
 void end_op(void) {
+  struct proc *p = myproc();
+  if (p->tx && p->tx->status == TX_ACTIVE)
+    return;
+
   int do_commit = 0;
 
   acquire(&log.lock);
@@ -195,6 +205,10 @@ static void commit() {
 //   log_write(bp)
 //   brelse(bp)
 void log_write(struct buf *b) {
+  struct proc *p = myproc();
+  if (p->tx && p->tx->status == TX_ACTIVE)
+    return;
+
   int i;
 
   acquire(&log.lock);
