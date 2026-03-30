@@ -5,6 +5,7 @@
 #include "riscv.h"
 
 struct buf;
+struct buf_data;
 struct context;
 struct file;
 struct inode;
@@ -192,8 +193,9 @@ void virtio_disk_intr(void);
 // tx.c
 struct transaction *txalloc();
 void txfree(struct transaction *tx);
-struct inode_data *idata(struct inode *ip);
 void *txdata(void *header, int read_only, struct tx_ops *ops);
+struct inode_data *idata(struct inode *ip);
+struct buf_data *bdata(struct buf *bp);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))

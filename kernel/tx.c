@@ -1,6 +1,7 @@
 #include "tx.h"
 #include "defs.h"
 #include "file.h"
+#include "kernel/buf.h"
 #include "proc.h"
 
 struct transaction *txalloc() {
@@ -118,4 +119,23 @@ static struct tx_ops inode_ops = {
 // should only be called with ilock
 struct inode_data *idata(struct inode *ip) {
   return (struct inode_data *)txdata(ip, 0, &inode_ops);
+}
+
+//
+// Kernel Buffer specific transactions
+//
+
+static struct tx_ops buffer_ops = {
+    .data_size = sizeof(struct buf_data),
+    .data_ptr_offset = offsetof(struct buf, data),
+    .commit_fn = 0,
+    .abort_fn = 0,
+    .lock_fn = 0,
+    .unlock_fn = 0};
+
+// Returns the appropriate buf_data for the current context:
+// shadow copy if inside an active transaction, stable data otherwise
+// should only be called with ilock
+struct buf_data *bdata(struct buf *bp) {
+  return (struct buf_data *)txdata(bp, 0, &buffer_ops);
 }
