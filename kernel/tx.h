@@ -10,7 +10,6 @@
 #define TX_COMMITTED 3
 
 #define MAX_WORKSET 16
-#define MAX_UNDO_OPS 16
 
 // Metadata for modified kernel objects specific to a transaction
 struct workset_entry {

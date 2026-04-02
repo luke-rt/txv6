@@ -14,7 +14,6 @@ uint64 sys_txbegin(void) {
 
   p->tx->status = TX_ACTIVE;
   p->tx->workset_size = 0;
-  p->tx->n_undo_ops = 0;
   acquire(&tickslock);
   p->tx->start_time = ticks;
   release(&tickslock);
@@ -58,7 +57,6 @@ uint64 sys_txcommit(void) {
   }
 
   p->tx->workset_size = 0;
-  p->tx->n_undo_ops = 0;
 
   return 0;
 }
@@ -89,7 +87,6 @@ uint64 sys_txabort(void) {
   }
   p->tx->status = TX_ABORTED;
   p->tx->workset_size = 0;
-  p->tx->n_undo_ops = 0;
 
   return 0;
 }

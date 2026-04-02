@@ -261,6 +261,7 @@ static struct inode *iget(uint dev, uint inum) {
   ip->inum = inum;
   ip->ref = 1;
   ip->valid = 0;
+  initxobj(&ip->xobj);
   if (ip->data == 0) {
     ip->data = kalloc();
     if (ip->data == 0)
