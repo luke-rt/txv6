@@ -5,6 +5,7 @@
 #include "riscv.h"
 
 struct buf;
+struct buf_data;
 struct context;
 struct file;
 struct inode;
@@ -16,6 +17,7 @@ struct stat;
 struct superblock;
 struct transaction;
 struct tx_ops;
+struct tx_data;
 
 // bio.c
 void binit(void);
@@ -192,8 +194,11 @@ void virtio_disk_intr(void);
 // tx.c
 struct transaction *txalloc();
 void txfree(struct transaction *tx);
-struct inode_data *idata(struct inode *ip);
 void *txdata(void *header, int read_only, struct tx_ops *ops);
+void initxobj(struct tx_data *xobj);
+struct inode_data *idata(struct inode *ip);
+struct inode_data *idata_ro(struct inode *ip);
+struct buf_data *bdata(struct buf *bp);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x) / sizeof((x)[0]))

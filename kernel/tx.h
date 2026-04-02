@@ -2,6 +2,7 @@
 #define _TX_H_
 
 #include "types.h"
+#include "spinlock.h"
 
 #define TX_INACTIVE 0
 #define TX_ACTIVE 1
@@ -9,7 +10,6 @@
 #define TX_COMMITTED 3
 
 #define MAX_WORKSET 16
-#define MAX_UNDO_OPS 16
 
 // Metadata for modified kernel objects specific to a transaction
 struct workset_entry {
@@ -23,19 +23,13 @@ struct workset_entry {
 
 // Kernel object type specific metadata/operations
 struct tx_ops {
-  int data_size;        // size of data for this object
-  int data_ptr_offset;  // offset of pointer to data within object
+  int data_size;  // size of data for this object
+  struct tx_data *(*get_xobj)(void *header);
+  void **(*get_data_ptr)(void *header);
   void (*commit_fn)(struct workset_entry *);
   void (*abort_fn)(struct workset_entry *);
   void (*lock_fn)(struct workset_entry *);
   void (*unlock_fn)(struct workset_entry *);
-};
-
-// Undo operations for modified kernel objects
-struct undo_op {
-  void (*fn)(void *arg);
-  void *arg;
-  int valid;
 };
 
 // Transaction data for a process
@@ -49,13 +43,12 @@ struct transaction {
   struct workset_entry
       workset[MAX_WORKSET];  // modified objects sorted by header addr
   int workset_size;          // num modified objects
-
-  struct undo_op undo_ops[MAX_UNDO_OPS];  // undo operations, called on ABORT
-  int n_undo_ops;                         // num undo opeartions
 };
 
 struct tx_data {
-  // transaction metadata for kernel objects, ie conflict detection
+  struct spinlock lock;
+  struct transaction *writer;
+  int reader_count;
 };
 
 #endif

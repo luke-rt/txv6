@@ -97,8 +97,8 @@ int main(void) {
   // Read from a separate process before commit: should see old stable data.
   child_print("outside tx before commit (stable)", TESTFILE);
 
-  r = txabort();
-  printf("txabort -> %d\n", r);
+  r = txcommit();
+  printf("txcommit -> %d\n", r);
   if (r < 0)
     exit(1);
 

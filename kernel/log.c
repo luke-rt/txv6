@@ -6,6 +6,8 @@
 #include "sleeplock.h"
 #include "fs.h"
 #include "buf.h"
+#include "tx.h"
+#include "proc.h"
 
 // Simple logging that allows concurrent FS system calls.
 //
@@ -70,8 +72,8 @@ static void install_trans(int recovering) {
     }
     struct buf *lbuf = bread(log.dev, log.start + tail + 1);  // read log block
     struct buf *dbuf = bread(log.dev, log.lh.block[tail]);    // read dst
-    memmove(dbuf->data, lbuf->data, BSIZE);  // copy block to dst
-    bwrite(dbuf);                            // write dst to disk
+    memmove(dbuf->data->bytes, lbuf->data->bytes, BSIZE);  // copy block to dst
+    bwrite(dbuf);                                          // write dst to disk
     if (recovering == 0)
       bunpin(dbuf);
     brelse(lbuf);
@@ -82,7 +84,7 @@ static void install_trans(int recovering) {
 // Read the log header from disk into the in-memory log header
 static void read_head(void) {
   struct buf *buf = bread(log.dev, log.start);
-  struct logheader *lh = (struct logheader *)(buf->data);
+  struct logheader *lh = (struct logheader *)(buf->data->bytes);
   int i;
   log.lh.n = lh->n;
   for (i = 0; i < log.lh.n; i++) {
@@ -96,7 +98,7 @@ static void read_head(void) {
 // current transaction commits.
 static void write_head(void) {
   struct buf *buf = bread(log.dev, log.start);
-  struct logheader *hb = (struct logheader *)(buf->data);
+  struct logheader *hb = (struct logheader *)(buf->data->bytes);
   int i;
   hb->n = log.lh.n;
   for (i = 0; i < log.lh.n; i++) {
@@ -115,6 +117,10 @@ static void recover_from_log(void) {
 
 // called at the start of each FS system call.
 void begin_op(void) {
+  struct proc *p = myproc();
+  if (p->tx && p->tx->status == TX_ACTIVE)
+    return;
+
   acquire(&log.lock);
   while (1) {
     if (log.committing) {
@@ -133,6 +139,10 @@ void begin_op(void) {
 // called at the end of each FS system call.
 // commits if this was the last outstanding operation.
 void end_op(void) {
+  struct proc *p = myproc();
+  if (p->tx && p->tx->status == TX_ACTIVE)
+    return;
+
   int do_commit = 0;
 
   acquire(&log.lock);
@@ -168,7 +178,7 @@ static void write_log(void) {
   for (tail = 0; tail < log.lh.n; tail++) {
     struct buf *to = bread(log.dev, log.start + tail + 1);  // log block
     struct buf *from = bread(log.dev, log.lh.block[tail]);  // cache block
-    memmove(to->data, from->data, BSIZE);
+    memmove(to->data->bytes, from->data->bytes, BSIZE);
     bwrite(to);  // write the log
     brelse(from);
     brelse(to);
@@ -191,10 +201,14 @@ static void commit() {
 //
 // log_write() replaces bwrite(); a typical use is:
 //   bp = bread(...)
-//   modify bp->data[]
+//   modify bp->bytes[]
 //   log_write(bp)
 //   brelse(bp)
 void log_write(struct buf *b) {
+  struct proc *p = myproc();
+  if (p->tx && p->tx->status == TX_ACTIVE)
+    return;
+
   int i;
 
   acquire(&log.lock);

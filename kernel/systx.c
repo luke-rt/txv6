@@ -14,7 +14,6 @@ uint64 sys_txbegin(void) {
 
   p->tx->status = TX_ACTIVE;
   p->tx->workset_size = 0;
-  p->tx->n_undo_ops = 0;
   acquire(&tickslock);
   p->tx->start_time = ticks;
   release(&tickslock);
@@ -42,7 +41,7 @@ uint64 sys_txcommit(void) {
   for (int i = 0; i < p->tx->workset_size; i++) {
     // copy shadow data to stable data
     struct workset_entry *e = &p->tx->workset[i];
-    void **data_ptr = (void **)((char *)e->header + e->ops->data_ptr_offset);
+    void **data_ptr = e->ops->get_data_ptr(e->header);
     kfree(*data_ptr);
     *data_ptr = e->shadow_data;
   }
@@ -58,7 +57,6 @@ uint64 sys_txcommit(void) {
   }
 
   p->tx->workset_size = 0;
-  p->tx->n_undo_ops = 0;
 
   return 0;
 }
@@ -89,7 +87,6 @@ uint64 sys_txabort(void) {
   }
   p->tx->status = TX_ABORTED;
   p->tx->workset_size = 0;
-  p->tx->n_undo_ops = 0;
 
   return 0;
 }
