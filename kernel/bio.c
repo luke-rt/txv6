@@ -43,6 +43,7 @@ void binit(void) {
   for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
     b->next = bcache.head.next;
     b->prev = &bcache.head;
+    initxobj(&b->xobj);
     b->data = (struct buf_data *)kalloc();
     if (b->data == 0)
       panic("binit: out of memory");

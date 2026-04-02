@@ -55,7 +55,7 @@ struct inode {
   struct sleeplock lock;  // protects everything below here
   int valid;              // inode has been read from disk?
 
-  // see tx.h
+  // transactional metadata
   struct tx_data xobj;
 
   // pointer to the transactional payload

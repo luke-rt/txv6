@@ -17,6 +17,7 @@ struct stat;
 struct superblock;
 struct transaction;
 struct tx_ops;
+struct tx_data;
 
 // bio.c
 void binit(void);
@@ -194,6 +195,7 @@ void virtio_disk_intr(void);
 struct transaction *txalloc();
 void txfree(struct transaction *tx);
 void *txdata(void *header, int read_only, struct tx_ops *ops);
+void initxobj(struct tx_data *xobj);
 struct inode_data *idata(struct inode *ip);
 struct inode_data *idata_ro(struct inode *ip);
 struct buf_data *bdata(struct buf *bp);

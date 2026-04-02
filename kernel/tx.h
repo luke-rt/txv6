@@ -2,6 +2,7 @@
 #define _TX_H_
 
 #include "types.h"
+#include "spinlock.h"
 
 #define TX_INACTIVE 0
 #define TX_ACTIVE 1
@@ -31,13 +32,6 @@ struct tx_ops {
   void (*unlock_fn)(struct workset_entry *);
 };
 
-// Undo operations for modified kernel objects
-struct undo_op {
-  void (*fn)(void *arg);
-  void *arg;
-  int valid;
-};
-
 // Transaction data for a process
 struct transaction {
   int status;
@@ -49,13 +43,12 @@ struct transaction {
   struct workset_entry
       workset[MAX_WORKSET];  // modified objects sorted by header addr
   int workset_size;          // num modified objects
-
-  struct undo_op undo_ops[MAX_UNDO_OPS];  // undo operations, called on ABORT
-  int n_undo_ops;                         // num undo opeartions
 };
 
 struct tx_data {
-  // transaction metadata for kernel objects, ie conflict detection
+  struct spinlock lock;
+  struct transaction *writer;
+  int reader_count;
 };
 
 #endif

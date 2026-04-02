@@ -74,6 +74,12 @@ void *txdata(void *header, int read_only, struct tx_ops *ops) {
   return txstable(header, ops->data_ptr_offset);
 }
 
+void initxobj(struct tx_data *xobj) {
+  xobj->writer = 0;
+  xobj->reader_count = 0;
+  initlock(&xobj->lock, "xobj");
+}
+
 //
 // INODE specific transactions
 //
