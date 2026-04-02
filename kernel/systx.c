@@ -41,7 +41,7 @@ uint64 sys_txcommit(void) {
   for (int i = 0; i < p->tx->workset_size; i++) {
     // copy shadow data to stable data
     struct workset_entry *e = &p->tx->workset[i];
-    void **data_ptr = (void **)((char *)e->header + e->ops->data_ptr_offset);
+    void **data_ptr = e->ops->get_data_ptr(e->header);
     kfree(*data_ptr);
     *data_ptr = e->shadow_data;
   }

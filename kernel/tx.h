@@ -23,8 +23,9 @@ struct workset_entry {
 
 // Kernel object type specific metadata/operations
 struct tx_ops {
-  int data_size;        // size of data for this object
-  int data_ptr_offset;  // offset of pointer to data within object
+  int data_size;  // size of data for this object
+  struct tx_data *(*get_xobj)(void *header);
+  void **(*get_data_ptr)(void *header);
   void (*commit_fn)(struct workset_entry *);
   void (*abort_fn)(struct workset_entry *);
   void (*lock_fn)(struct workset_entry *);
