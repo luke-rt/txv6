@@ -37,6 +37,17 @@ void *txshadow(void *header, int read_only, struct tx_ops *ops) {
   if (tx->workset_size >= MAX_WORKSET)
     return 0;
 
+  // if another transaction is active, abort
+  // otherwise, register is the writer
+  struct tx_data *xobj = ops->get_xobj(header);
+  acquire(&xobj->lock);
+  if (xobj->writer != 0 && xobj->writer != tx) {
+    release(&xobj->lock);
+    return 0;
+  }
+  xobj->writer = tx;
+  release(&xobj->lock);
+
   // Create new shadow copy
   struct workset_entry *e = &tx->workset[tx->workset_size++];
   e->header = header;
