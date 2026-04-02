@@ -3,6 +3,8 @@
 #include "file.h"
 #include "proc.h"
 
+// test comment
+
 struct transaction *txalloc() {
   struct transaction *tx = (struct transaction *)kalloc();
   if (tx == 0)
