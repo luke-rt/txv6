@@ -67,10 +67,11 @@ static void child_print(const char *tag, const char *path) {
   wait(&st);
 }
 
-int main(void) {
+static void test_commit(void) {
   int fd;
   int r;
 
+  printf("=== test_commit ===\n");
   reset_file(TESTFILE, "ORIGINAL");
   print_file("initial stable", TESTFILE);
 
@@ -86,15 +87,11 @@ int main(void) {
     exit(1);
   }
 
-  // overwrite from offset 0
   write_all(fd, "SHADOW!!");
   close(fd);
 
-  // Read in the same transaction context: should see shadow data.
   printf("txstatus -> %d\n", txstatus());
   print_file("inside tx (shadow)", TESTFILE);
-
-  // Read from a separate process before commit: should see old stable data.
   child_print("outside tx before commit (stable)", TESTFILE);
 
   r = txcommit();
@@ -102,11 +99,55 @@ int main(void) {
   if (r < 0)
     exit(1);
 
-  // After commit, stable state should reflect the transaction writes.
   child_print("outside tx after commit (stable)", TESTFILE);
   printf("txstatus -> %d\n", txstatus());
-  print_file("outside tx after commit (stable)", TESTFILE);
+  print_file("after commit (stable)", TESTFILE);
 
   unlink(TESTFILE);
+}
+
+static void test_abort(void) {
+  int fd;
+  int r;
+
+  printf("=== test_abort ===\n");
+  reset_file(TESTFILE, "ORIGINAL");
+  print_file("initial stable", TESTFILE);
+
+  r = txbegin();
+  printf("txbegin -> %d\n", r);
+  if (r < 0)
+    exit(1);
+
+  fd = open(TESTFILE, O_RDWR);
+  if (fd < 0) {
+    printf("open(O_RDWR) failed\n");
+    txabort();
+    exit(1);
+  }
+
+  write_all(fd, "SHADOW!!");
+  close(fd);
+
+  // Shadow write visible inside transaction
+  print_file("inside tx (shadow)", TESTFILE);
+  child_print("outside tx before abort (stable)", TESTFILE);
+
+  r = txabort();
+  printf("txabort -> %d\n", r);
+  if (r < 0)
+    exit(1);
+
+  // After abort, file must show original content
+  printf("txstatus -> %d\n", txstatus());
+  print_file("after abort (ORIGINAL)", TESTFILE);
+  child_print("child after abort (ORIGINAL)", TESTFILE);
+
+  unlink(TESTFILE);
+}
+
+int main(void) {
+  test_commit();
+  test_abort();
   exit(0);
 }

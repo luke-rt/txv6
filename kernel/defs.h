@@ -45,6 +45,7 @@ int filestat(struct file *, uint64 addr);
 int filewrite(struct file *, uint64, int n);
 
 // fs.c
+void bfree(int, uint);
 void fsinit(int);
 int dirlink(struct inode *, char *, uint);
 struct inode *dirlookup(struct inode *, char *, uint *);

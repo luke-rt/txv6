@@ -68,8 +68,8 @@ uint64 sys_txabort(void) {
   if (p->tx->status != TX_ACTIVE)
     return -1;
 
-  // acquires all locks, then aborts all objects, then unlocks
-  // TODO: handle case where cannot acquire a lock
+  p->tx->status = TX_ABORTED;
+
   for (int i = 0; i < p->tx->workset_size; i++) {
     struct workset_entry *entry = &p->tx->workset[i];
     if (entry->ops->lock_fn)
@@ -77,15 +77,14 @@ uint64 sys_txabort(void) {
   }
   for (int i = 0; i < p->tx->workset_size; i++) {
     struct workset_entry *entry = &p->tx->workset[i];
-    if (entry->ops->abort_fn)
-      entry->ops->abort_fn(entry);
-  }
-  for (int i = 0; i < p->tx->workset_size; i++) {
-    struct workset_entry *entry = &p->tx->workset[i];
     if (entry->ops->unlock_fn)
       entry->ops->unlock_fn(entry);
   }
-  p->tx->status = TX_ABORTED;
+  for (int i = 0; i < p->tx->workset_size; i++) {
+    struct workset_entry *entry = &p->tx->workset[i];
+    if (entry->ops->abort_fn)
+      entry->ops->abort_fn(entry);
+  }
   p->tx->workset_size = 0;
 
   return 0;
