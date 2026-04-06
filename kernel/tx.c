@@ -84,7 +84,7 @@ static void inode_commit(struct workset_entry *e) {
   begin_op();
 
   // write to disk — status is TX_COMMITTED so iupdate won't skip
-  if (e->read_only == 1) {
+  if (!e->read_only) {
     iupdate(ip);
   }
 
@@ -155,10 +155,20 @@ static void buf_commit(struct workset_entry *e) {
   bunpin(bp);
 }
 static void buf_abort(struct workset_entry *e) {
+  struct buf *bp = (struct buf *)e->header;
+
+  if (e->newly_allocated) {
+    // this block was balloced inside the tx and isn't referenced by the stable inode
+    // disk block needs to be freed
+    begin_op();
+    bfree(bp->dev, bp->blockno);
+    end_op();
+  }
+
   if (e->shadow_data)
     kfree(e->shadow_data);
 
-  bunpin((struct buf *)e->header);
+  bunpin(bp);
 }
 
 static void buf_lock(struct workset_entry *e) {
@@ -196,8 +206,11 @@ struct buf_data *bdata(struct buf *bp) {
   if (p && p->tx && p->tx->status == TX_ACTIVE) {
     int old_size = p->tx->workset_size;
     struct buf_data *d = (struct buf_data *)txshadow(bp, 0, &buffer_ops);
-    if (p->tx->workset_size > old_size)
+    if (p->tx->workset_size > old_size) {
       bpin(bp);  // new shadow was created
+      // bpin increases to refcnt to 1 when block is newly allocated
+      p->tx->workset[p->tx->workset_size - 1].newly_allocated = (bp->refcnt == 1);
+    }
     return d;
   }
   return bp->data;
