@@ -24,18 +24,7 @@ uint64 sys_txbegin(void) {
     p->tx->saved_tf = kalloc();
   memmove(p->tx->saved_tf, p->trapframe, sizeof(struct trapframe));
 
-  // snapshot kernel stack — for mid-syscall abort via klongjmp
-  // ksetjmp returns 0 here on normal entry
-  // returns 1 when klongjmp jumps back here after an abort
-  if (ksetjmp(&p->tx->kjmp) != 0) {
-    // we got here via klongjmp from tx_abort_now()
-    // kernel stack is clean, now rewind user state
-    memmove(p->trapframe, p->tx->saved_tf, sizeof(struct trapframe));
-    p->trapframe->a0 = -1;  // txbegin returns -1 to user on retry
-    return -1;              // this actually goes into trapframe->a0 anyway
-  }
-
-  p->tx->kjmp_valid = 1;
+  p->tx->kjmp_valid = 0;  // will be set on next syscall entry
   return 0;
 }
 
@@ -74,6 +63,7 @@ uint64 sys_txcommit(void) {
   }
 
   p->tx->workset_size = 0;
+  p->tx->kjmp_valid = 0;
 
   return 0;
 }
@@ -103,6 +93,7 @@ uint64 sys_txabort(void) {
       entry->ops->abort_fn(entry);
   }
   p->tx->workset_size = 0;
+  p->tx->kjmp_valid = 0;
 
   return 0;
 }

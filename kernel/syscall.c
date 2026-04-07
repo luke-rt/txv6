@@ -6,6 +6,8 @@
 #include "proc.h"
 #include "syscall.h"
 #include "defs.h"
+#include "tx.h"
+#include "setjmp.h"
 
 // Fetch the uint64 at addr from the current process.
 int fetchaddr(uint64 addr, uint64 *ip) {
@@ -116,6 +118,18 @@ static uint64 (*syscalls[])(void) = {
 void syscall(void) {
   int num;
   struct proc *p = myproc();
+
+  // If inside an active transaction, snapshot the kernel stack here so
+  // tx_abort_now() can longjmp back to this stable frame.
+  if (p->tx && p->tx->status == TX_ACTIVE && !p->tx->kjmp_valid) {
+    if (ksetjmp(&p->tx->kjmp) != 0) {
+      // returned via klongjmp after a mid-syscall abort
+      memmove(p->trapframe, p->tx->saved_tf, sizeof(struct trapframe));
+      p->trapframe->a0 = -1;
+      return;
+    }
+    p->tx->kjmp_valid = 1;
+  }
 
   num = p->trapframe->a7;
   if (num > 0 && num < NELEM(syscalls) && syscalls[num]) {
