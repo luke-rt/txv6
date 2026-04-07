@@ -1,9 +1,9 @@
 #ifndef _RISCV_H_
 #define _RISCV_H_
 
-#include "types.h"
-
 #ifndef __ASSEMBLER__
+
+#include "types.h"
 
 // which hart (core) is this?
 __attribute__((unused)) static inline uint64 r_mhartid() {
