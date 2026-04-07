@@ -17,6 +17,7 @@ struct workset_entry {
   // void *stable_data;  // original data
   void *shadow_data;  // private modified copy of data
   int read_only;  // if set to 1, only read from data, no shadow objects needed
+  int newly_allocated;  // buf was balloc'd inside this tx; bfree on abort
 
   struct tx_ops *ops;  // operations for this object type
 };
