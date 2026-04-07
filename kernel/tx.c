@@ -38,6 +38,7 @@ struct workset_entry *find_workset_entry(struct transaction *tx, void *header) {
   return 0;
 }
 
+// TODO
 void tx_abort_now(void) {
   struct proc *p = myproc();
   struct transaction *tx = p->tx;
@@ -50,8 +51,8 @@ void tx_abort_now(void) {
 
   // TODO: normal undo stuff as found in sys_txabort
 
-  // 5. jump back to ksetjmp point in sys_txbegin
-  //    this unwinds the entire kernel call stack cleanly
+  // jump back to ksetjmp point in sys_txbegin
+  // this unwinds the entire kernel call stack cleanly
   if (tx->kjmp_valid)
     klongjmp(&tx->kjmp, 1);
 
