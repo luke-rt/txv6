@@ -69,9 +69,10 @@ void *txshadow(void *header, int read_only, struct tx_ops *ops) {
     return existing->shadow_data;
 
   // workset full, should abort transaction
-  if (tx->workset_size >= MAX_WORKSET)
+  if (tx->workset_size >= MAX_WORKSET) {
     tx_abort_now();
-  return 0;  // unreachable
+    return 0;  // unreachable
+  }
 
   // if another transaction is active, abort
   // otherwise, register is the writer
