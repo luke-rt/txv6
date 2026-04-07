@@ -13,6 +13,7 @@ struct transaction *txalloc() {
   tx->retry_count = 0;
   tx->start_time = 0;
   tx->status = TX_INACTIVE;
+  tx->kjmp_valid = 0;
 
   return tx;
 }
@@ -37,25 +38,40 @@ struct workset_entry *find_workset_entry(struct transaction *tx, void *header) {
   return 0;
 }
 
+void tx_abort_now(void) {
+  struct proc *p = myproc();
+  struct transaction *tx = p->tx;
+
+  if (tx == 0 || tx->status != TX_ACTIVE)
+    panic("tx_abort_now: no active transaction");
+
+  // TODO: undo ops, ie release locks, iunlock,
+  // tx_run_undo?
+
+  // TODO: normal undo stuff as found in sys_txabort
+
+  // 5. jump back to ksetjmp point in sys_txbegin
+  //    this unwinds the entire kernel call stack cleanly
+  if (tx->kjmp_valid)
+    klongjmp(&tx->kjmp, 1);
+
+  // should not reach here
+  panic("tx_abort_now: no kjmp set");
+}
+
 // returns pointer to shadow copy of data, creating one if needed
 void *txshadow(void *header, int read_only, struct tx_ops *ops) {
   struct proc *p = myproc();
   struct transaction *tx = p->tx;
 
-  // if shadow copy already exists, return it
-  // for (int i = 0; i < tx->workset_size; i++) {
-  //   struct workset_entry *e = &tx->workset[i];
-  //   if (e->header == header) {
-  //     return e->shadow_data;
-  //   }
-  // }
   struct workset_entry *existing = find_workset_entry(tx, header);
   if (existing)
     return existing->shadow_data;
 
   // workset full, should abort transaction
   if (tx->workset_size >= MAX_WORKSET)
-    return 0;
+    tx_abort_now();
+  return 0;  // unreachable
 
   // if another transaction is active, abort
   // otherwise, register is the writer
@@ -63,7 +79,8 @@ void *txshadow(void *header, int read_only, struct tx_ops *ops) {
   acquire(&xobj->lock);
   if (xobj->writer != 0 && xobj->writer != tx) {
     release(&xobj->lock);
-    return 0;
+    tx_abort_now();
+    return 0;  // unreachable
   }
   xobj->writer = tx;
   release(&xobj->lock);

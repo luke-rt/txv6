@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "spinlock.h"
+#include "setjmp.h"
 
 #define TX_INACTIVE 0
 #define TX_ACTIVE 1
@@ -40,6 +41,8 @@ struct transaction {
   uint64 start_time;
 
   struct trapframe *saved_tf;  // saved registers
+  struct jmp_buf kjmp;         // kernel stack snapshot (for mid-syscall abort)
+  int kjmp_valid;  // set to 1 if kjmp contains valid jump buffer, 0 otherwise
 
   struct workset_entry
       workset[MAX_WORKSET];  // modified objects sorted by header addr
