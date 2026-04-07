@@ -21,17 +21,37 @@ void txfree(struct transaction *tx) {
   kfree((void *)tx);
 }
 
+struct workset_entry *find_workset_entry(struct transaction *tx, void *header) {
+  // use binary search since workset is sorted by header address
+  int left = 0, right = tx->workset_size - 1;
+  while (left <= right) {
+    int mid = left + (right - left) / 2;
+    if (tx->workset[mid].header == header) {
+      return &tx->workset[mid];
+    } else if (tx->workset[mid].header < header) {
+      left = mid + 1;
+    } else {
+      right = mid - 1;
+    }
+  }
+  return 0;
+}
+
 // returns pointer to shadow copy of data, creating one if needed
 void *txshadow(void *header, int read_only, struct tx_ops *ops) {
   struct proc *p = myproc();
   struct transaction *tx = p->tx;
 
   // if shadow copy already exists, return it
-  for (int i = 0; i < tx->workset_size; i++) {
-    if (tx->workset[i].header == header) {
-      return tx->workset[i].shadow_data;
-    }
-  }
+  // for (int i = 0; i < tx->workset_size; i++) {
+  //   struct workset_entry *e = &tx->workset[i];
+  //   if (e->header == header) {
+  //     return e->shadow_data;
+  //   }
+  // }
+  struct workset_entry *existing = find_workset_entry(tx, header);
+  if (existing)
+    return existing->shadow_data;
 
   // workset full, should abort transaction
   if (tx->workset_size >= MAX_WORKSET)
@@ -61,7 +81,20 @@ void *txshadow(void *header, int read_only, struct tx_ops *ops) {
   // TODO: copy on write?
   memmove(e->shadow_data, *e->ops->get_data_ptr(header), ops->data_size);
 
-  return e->shadow_data;
+  void *result = e->shadow_data;
+
+  // sort workset by header address
+  for (int i = tx->workset_size - 1; i > 0; i--) {
+    if (tx->workset[i - 1].header > tx->workset[i].header) {
+      struct workset_entry temp = tx->workset[i];
+      tx->workset[i] = tx->workset[i - 1];
+      tx->workset[i - 1] = temp;
+    } else {
+      break;
+    }
+  }
+
+  return result;
 }
 
 // returns data pointer of kernel object
@@ -167,8 +200,8 @@ static void buf_abort(struct workset_entry *e) {
   struct buf *bp = (struct buf *)e->header;
 
   if (e->newly_allocated) {
-    // this block was balloced inside the tx and isn't referenced by the stable inode
-    // disk block needs to be freed
+    // this block was balloced inside the tx and isn't referenced by the stable
+    // inode disk block needs to be freed
     begin_op();
     bfree(bp->dev, bp->blockno);
     end_op();
@@ -217,8 +250,10 @@ struct buf_data *bdata(struct buf *bp) {
     struct buf_data *d = (struct buf_data *)txshadow(bp, 0, &buffer_ops);
     if (p->tx->workset_size > old_size) {
       bpin(bp);  // new shadow was created
-      // bpin increases to refcnt to 1 when block is newly allocated
-      p->tx->workset[p->tx->workset_size - 1].newly_allocated = (bp->refcnt == 1);
+                 // bpin increases to refcnt to 1 when block is newly allocated
+      struct workset_entry *e = find_workset_entry(p->tx, bp);
+      if (e)
+        e->newly_allocated = (bp->refcnt == 1);
     }
     return d;
   }
