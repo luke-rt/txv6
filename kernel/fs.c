@@ -10,13 +10,11 @@
 // are in sysfile.c.
 
 #include "types.h"
-#include "riscv.h"
 #include "defs.h"
 #include "param.h"
 #include "stat.h"
 #include "spinlock.h"
 #include "proc.h"
-#include "sleeplock.h"
 #include "fs.h"
 #include "buf.h"
 #include "file.h"
@@ -309,6 +307,11 @@ void ilock(struct inode *ip) {
     if (ip->data->type == 0)
       panic("ilock: no type");
   }
+
+  // struct proc *p = myproc();
+  // if (p->tx && p->tx->status == TX_ACTIVE) {
+  //   p->tx->undo_ops[p->tx->undo_size++] = (void (*)(void *))iunlock;
+  // }
 }
 
 // Unlock the given inode.

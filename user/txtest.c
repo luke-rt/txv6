@@ -146,8 +146,108 @@ static void test_abort(void) {
   unlink(TESTFILE);
 }
 
+static void test_conflict(void) {
+  int pid;
+  int st = 0;
+  int p2c[2], c2p[2];
+  char buf[1];
+
+  printf("=== test_conflict ===\n");
+  reset_file(TESTFILE, "ORIGINAL");
+  print_file("initial stable", TESTFILE);
+
+  pipe(p2c);
+  pipe(c2p);
+
+  pid = fork();
+  if (pid < 0) {
+    printf("fork failed\n");
+    exit(1);
+  }
+
+  if (pid == 0) {
+    // ── child ──────────────────────────────────────────────────────
+    close(p2c[1]);
+    close(c2p[0]);
+
+    if (txbegin() < 0) {
+      printf("child: txbegin failed\n");
+      exit(1);
+    }
+    printf("child: txbegin ok\n");
+
+    int fd = open(TESTFILE, O_RDWR);
+    if (fd < 0) {
+      printf("child: open failed\n");
+      txabort();
+      exit(1);
+    }
+    write_all(fd, "CHILD!!!");
+    close(fd);
+
+    // tell parent we are inside tx and have written
+    write(c2p[1], "r", 1);
+    // wait for parent to also have written
+    read(p2c[0], buf, 1);
+
+    int r = txcommit();
+    printf("child: txcommit -> %d\n", r);
+    if (r == 0)
+      print_file("child: committed", TESTFILE);
+    else
+      printf("child: commit failed (conflict)\n");
+
+    close(p2c[0]);
+    close(c2p[1]);
+    exit(0);
+
+  } else {
+    // ── parent ─────────────────────────────────────────────────────
+    close(p2c[0]);
+    close(c2p[1]);
+
+    if (txbegin() < 0) {
+      printf("parent: txbegin failed\n");
+      exit(1);
+    }
+    printf("parent: txbegin ok\n");
+
+    int fd = open(TESTFILE, O_RDWR);
+    if (fd < 0) {
+      printf("parent: open failed\n");
+      txabort();
+      exit(1);
+    }
+    write_all(fd, "PARENT!!");
+    close(fd);
+
+    // wait for child to also have written
+    read(c2p[0], buf, 1);
+    // tell child parent is ready
+    write(p2c[1], "r", 1);
+
+    int r = txcommit();
+    printf("parent: txcommit -> %d\n", r);
+    if (r == 0)
+      print_file("parent: committed", TESTFILE);
+    else
+      printf("parent: commit failed (conflict)\n");
+
+    wait(&st);
+
+    printf("=== final state ===\n");
+    print_file("final", TESTFILE);
+    printf("expected: exactly one of PARENT!! or CHILD!!!, not ORIGINAL\n");
+
+    close(c2p[0]);
+    close(p2c[1]);
+    unlink(TESTFILE);
+  }
+}
+
 int main(void) {
   test_commit();
   test_abort();
+  test_conflict();
   exit(0);
 }
