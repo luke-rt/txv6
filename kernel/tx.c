@@ -282,8 +282,10 @@ struct buf_data *bdata(struct buf *bp) {
   if (p && p->tx && p->tx->status == TX_ACTIVE) {
     int old_size = p->tx->workset_size;
     struct buf_data *d = (struct buf_data *)txshadow(bp, 0, &buffer_ops);
-    if (d == 0)
-      panic("bdata: txshadow failed");
+    if (d == 0) {
+      brelse(bp);
+      tx_abort_now(bp);
+    }
 
     // new shadow was created
     if (p->tx->workset_size > old_size) {
