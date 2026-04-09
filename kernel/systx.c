@@ -2,7 +2,6 @@
 #include "tx.h"
 #include "defs.h"
 #include "proc.h"
-#include "setjmp.h"
 
 uint64 sys_txbegin(void) {
   int flags;

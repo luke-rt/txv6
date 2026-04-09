@@ -11,6 +11,7 @@
 #define TX_COMMITTED 3
 
 #define MAX_WORKSET 16
+#define MAX_UNDO 16
 
 // Metadata for modified kernel objects specific to a transaction
 struct workset_entry {
@@ -47,6 +48,11 @@ struct transaction {
   struct workset_entry
       workset[MAX_WORKSET];  // modified objects sorted by header addr
   int workset_size;          // num modified objects
+
+  void (*undo_ops[MAX_UNDO])(
+      void *header);  // TODO: undo ops for in-progress transactions, to be run
+                      // on abort. For example, iunlock, release buf locks, etc.
+  int undo_size;
 };
 
 struct tx_data {
