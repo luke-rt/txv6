@@ -13,6 +13,7 @@ struct transaction *txalloc() {
   tx->retry_count = 0;
   tx->start_time = 0;
   tx->status = TX_INACTIVE;
+  tx->kjmp_valid = 0;
 
   return tx;
 }
@@ -37,25 +38,59 @@ struct workset_entry *find_workset_entry(struct transaction *tx, void *header) {
   return 0;
 }
 
+// TODO
+void tx_abort_now(void *header) {
+  struct proc *p = myproc();
+  struct transaction *tx = p->tx;
+
+  if (tx == 0 || tx->status != TX_ACTIVE)
+    panic("tx_abort_now: no active transaction");
+
+  // Undo operations for workset entry that led to abort
+  for (int i = 0; i < tx->undo_size; i++) {
+    tx->undo_ops[i](header);
+  }
+
+  // abort functions for previous workset entries
+  for (int i = 0; i < p->tx->workset_size; i++) {
+    struct workset_entry *entry = &p->tx->workset[i];
+    if (entry->ops->abort_fn)
+      entry->ops->abort_fn(entry);
+  }
+
+  // jump back to ksetjmp point in sys_txbegin
+  // this unwinds the entire kernel call stack cleanly
+  if (tx->kjmp_valid)
+    klongjmp(&tx->kjmp, 1);
+
+  // should not reach here
+  panic("tx_abort_now: no kjmp set");
+}
+
 // returns pointer to shadow copy of data, creating one if needed
 void *txshadow(void *header, int read_only, struct tx_ops *ops) {
   struct proc *p = myproc();
   struct transaction *tx = p->tx;
 
-  // if shadow copy already exists, return it
-  // for (int i = 0; i < tx->workset_size; i++) {
-  //   struct workset_entry *e = &tx->workset[i];
-  //   if (e->header == header) {
-  //     return e->shadow_data;
-  //   }
-  // }
   struct workset_entry *existing = find_workset_entry(tx, header);
   if (existing)
     return existing->shadow_data;
 
   // workset full, should abort transaction
-  if (tx->workset_size >= MAX_WORKSET)
-    return 0;
+  if (tx->workset_size >= MAX_WORKSET) {
+    return 0;  // unreachable
+  }
+
+  // if another transaction is active, abort
+  // otherwise, register is the writer
+  struct tx_data *xobj = ops->get_xobj(header);
+  acquire(&xobj->lock);
+  if (xobj->writer != 0 && xobj->writer != tx) {
+    release(&xobj->lock);
+    return 0;  // unreachable
+  }
+  xobj->writer = tx;
+  release(&xobj->lock);
 
   // Create new shadow copy
   struct workset_entry *e = &tx->workset[tx->workset_size++];
@@ -159,13 +194,23 @@ static struct tx_ops inode_ops = {.data_size = sizeof(struct inode_data),
 
 // Returns the appropriate inode_data for the current context:
 // shadow copy if inside an active transaction, stable data otherwise
-// should only be called with ilock
+// should only be called with ilock, then iunlock after
 struct inode_data *idata(struct inode *ip) {
-  return (struct inode_data *)txdata(ip, 0, &inode_ops);
+  struct inode_data *data = (struct inode_data *)txdata(ip, 0, &inode_ops);
+  if (data == 0) {
+    iunlock(ip);
+    tx_abort_now(ip);
+  }
+  return data;
 }
 
 struct inode_data *idata_ro(struct inode *ip) {
-  return (struct inode_data *)txdata(ip, 1, &inode_ops);
+  struct inode_data *data = (struct inode_data *)txdata(ip, 1, &inode_ops);
+  if (data == 0) {
+    iunlock(ip);
+    tx_abort_now(ip);
+  }
+  return data;
 }
 
 //
@@ -177,14 +222,13 @@ static void buf_commit(struct workset_entry *e) {
 
   begin_op();
 
-  acquiresleep(&bp->lock);
   log_write(bp);
-  releasesleep(&bp->lock);
 
   end_op();
 
   bunpin(bp);
 }
+
 static void buf_abort(struct workset_entry *e) {
   struct buf *bp = (struct buf *)e->header;
 
@@ -232,14 +276,18 @@ static struct tx_ops buffer_ops = {.data_size = sizeof(struct buf_data),
 // shadow copy if inside an active transaction, stable data otherwise
 // Need to pin if new shadow created, otherwise buf might get flushed
 // before transaction is completed
+// Wrapped in bread() and brelse()
 struct buf_data *bdata(struct buf *bp) {
   struct proc *p = myproc();
   if (p && p->tx && p->tx->status == TX_ACTIVE) {
     int old_size = p->tx->workset_size;
     struct buf_data *d = (struct buf_data *)txshadow(bp, 0, &buffer_ops);
+    if (d == 0)
+      panic("bdata: txshadow failed");
+
+    // new shadow was created
     if (p->tx->workset_size > old_size) {
-      bpin(bp);  // new shadow was created
-                 // bpin increases to refcnt to 1 when block is newly allocated
+      bpin(bp);  // bpin increases to refcnt to 1 when block is newly allocated
       struct workset_entry *e = find_workset_entry(p->tx, bp);
       if (e)
         e->newly_allocated = (bp->refcnt == 1);

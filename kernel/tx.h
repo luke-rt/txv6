@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "spinlock.h"
+#include "setjmp.h"
 
 #define TX_INACTIVE 0
 #define TX_ACTIVE 1
@@ -10,6 +11,7 @@
 #define TX_COMMITTED 3
 
 #define MAX_WORKSET 16
+#define MAX_UNDO 16
 
 // Metadata for modified kernel objects specific to a transaction
 struct workset_entry {
@@ -40,10 +42,17 @@ struct transaction {
   uint64 start_time;
 
   struct trapframe *saved_tf;  // saved registers
+  struct jmp_buf kjmp;         // kernel stack snapshot (for mid-syscall abort)
+  int kjmp_valid;  // set to 1 if kjmp contains valid jump buffer, 0 otherwise
 
   struct workset_entry
       workset[MAX_WORKSET];  // modified objects sorted by header addr
   int workset_size;          // num modified objects
+
+  void (*undo_ops[MAX_UNDO])(
+      void *header);  // TODO: undo ops for in-progress transactions, to be run
+                      // on abort. For example, iunlock, release buf locks, etc.
+  int undo_size;
 };
 
 struct tx_data {

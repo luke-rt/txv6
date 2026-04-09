@@ -19,6 +19,11 @@ uint64 sys_txbegin(void) {
   release(&tickslock);
   p->tx->retry_count = 0;
 
+  if (p->tx->saved_tf == 0)
+    p->tx->saved_tf = kalloc();
+  memmove(p->tx->saved_tf, p->trapframe, sizeof(struct trapframe));
+
+  p->tx->kjmp_valid = 0;  // will be set on next syscall entry
   return 0;
 }
 
@@ -57,6 +62,7 @@ uint64 sys_txcommit(void) {
   }
 
   p->tx->workset_size = 0;
+  p->tx->kjmp_valid = 0;
 
   return 0;
 }
@@ -86,6 +92,7 @@ uint64 sys_txabort(void) {
       entry->ops->abort_fn(entry);
   }
   p->tx->workset_size = 0;
+  p->tx->kjmp_valid = 0;
 
   return 0;
 }

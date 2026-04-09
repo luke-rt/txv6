@@ -14,6 +14,7 @@ OBJS = \
   $K/vm.o \
   $K/proc.o \
   $K/swtch.o \
+  $K/kjmp.o \
   $K/trampoline.o \
   $K/trap.o \
   $K/syscall.o \
