@@ -49,8 +49,9 @@ struct transaction {
       workset[MAX_WORKSET];  // modified objects sorted by header addr
   int workset_size;          // num modified objects
 
+  void *undo_args[MAX_UNDO];
   void (*undo_ops[MAX_UNDO])(
-      void *header);  // TODO: undo ops for in-progress transactions, to be run
+      void *arg);  // TODO: undo ops for in-progress transactions, to be run
                       // on abort. For example, iunlock, release buf locks, etc.
   int undo_size;
 };

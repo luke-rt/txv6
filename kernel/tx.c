@@ -4,8 +4,6 @@
 #include "kernel/buf.h"
 #include "proc.h"
 
-// test comment
-
 struct transaction *txalloc() {
   struct transaction *tx = (struct transaction *)kalloc();
   if (tx == 0)
@@ -49,8 +47,8 @@ void tx_abort_now(void *header) {
     panic("tx_abort_now: no active transaction");
 
   // Undo operations for workset entry that led to abort
-  for (int i = 0; i < tx->undo_size; i++) {
-    tx->undo_ops[i](header);
+  for (int i = tx->undo_size - 1; i >= 0; i--) { // LIFO
+    tx->undo_ops[i](tx->undo_args[i]);
   }
 
   // abort functions for previous workset entries
@@ -297,4 +295,28 @@ struct buf_data *bdata(struct buf *bp) {
     return d;
   }
   return bp->data;
+}
+
+
+// ==================
+// *** UNDO_OPS ***
+// ==================
+
+void undo_iunlock(void *arg) {
+  struct inode *ip = (struct inode *)arg;
+  iunlock(ip);
+}
+
+void undo_buf_unlock(void *arg) {
+  struct buf *bp = (struct buf *)arg;
+  releasesleep(&bp->lock);
+}
+
+// PLACEHOLDERS for now, can add more when needed
+void undo_b(void *arg) {
+
+}
+
+void undo_c(void *arg) {
+
 }
