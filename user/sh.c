@@ -3,6 +3,7 @@
 #include "kernel/types.h"
 #include "user/user.h"
 #include "kernel/fcntl.h"
+#include "kernel/tx.h"
 
 // Parsed command representation
 #define EXEC 1
@@ -74,8 +75,34 @@ void runcmd(struct cmd *cmd) {
       ecmd = (struct execcmd *)cmd;
       if (ecmd->argv[0] == 0)
         exit(1);
-      exec(ecmd->argv[0], ecmd->argv);
-      fprintf(2, "exec %s failed\n", ecmd->argv[0]);
+
+      // Custom logic for Tx cmds
+      if (strcmp(ecmd->argv[0], "tx") == 0) {
+        fprintf(2, "exec tx initiated\n");
+
+        char **tx_cmds = (char**) malloc((MAXARGS - 1) * sizeof(char*));
+
+        for (int i = 1; i < MAXARGS; i++) {
+          // Use semicolons to separate commands in the tx shell
+          if (strcmp(ecmd->argv[i], ";") == 0) {
+            
+            // TODO: Push current command (with its args) into char **tx_cmds
+
+          }
+        }
+
+        // TODO: Construct transaction, emplace ops
+
+
+        // Free all tx cmds
+        for (int i = 0; i < MAXARGS - 1; i++) {
+          free(tx_cmds[i]);
+        }
+        free(tx_cmds);
+      } else {
+        exec(ecmd->argv[0], ecmd->argv);
+        fprintf(2, "exec %s failed\n", ecmd->argv[0]);
+      }
       break;
 
     case REDIR:
