@@ -22,7 +22,9 @@ WHAT THIS FORK ADDS
 - Transaction lifecycle syscalls: txbegin, txcommit, txabort, txstatus.
 - Per-process transaction context and transaction status tracking.
 - Workset-based update model with shadow data and commit/abort hooks.
+- Write-Write conflict detection and resolution with tx_abort_now()
 - User-level transactional tests (for example, txtest).
+- New setjmp()/longjmp() implementation to support mid-transaction aborts.
 
 BUILDING AND RUNNING
 
@@ -35,4 +37,3 @@ Run:
 
 From the xv6 shell, run transactional tests such as:
 - txtest
-
