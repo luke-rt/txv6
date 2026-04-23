@@ -245,9 +245,9 @@ static void test_conflict(void) {
   }
 }
 
-static void test_asymmetric_conflict(void) {
+/*static void test_asymmetric_conflict(void) {
 
-}
+}*/
 
 int main(void) {
   test_commit();

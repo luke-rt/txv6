@@ -75,34 +75,8 @@ void runcmd(struct cmd *cmd) {
       ecmd = (struct execcmd *)cmd;
       if (ecmd->argv[0] == 0)
         exit(1);
-
-      // Custom logic for Tx cmds
-      if (strcmp(ecmd->argv[0], "tx") == 0) {
-        fprintf(2, "exec tx initiated\n");
-
-        char **tx_cmds = (char**) malloc((MAXARGS - 1) * sizeof(char*));
-
-        for (int i = 1; i < MAXARGS; i++) {
-          // Use semicolons to separate commands in the tx shell
-          if (strcmp(ecmd->argv[i], ";") == 0) {
-            
-            // TODO: Push current command (with its args) into char **tx_cmds
-
-          }
-        }
-
-        // TODO: Construct transaction, emplace ops
-
-
-        // Free all tx cmds
-        for (int i = 0; i < MAXARGS - 1; i++) {
-          free(tx_cmds[i]);
-        }
-        free(tx_cmds);
-      } else {
-        exec(ecmd->argv[0], ecmd->argv);
-        fprintf(2, "exec %s failed\n", ecmd->argv[0]);
-      }
+      exec(ecmd->argv[0], ecmd->argv);
+      fprintf(2, "exec %s failed\n", ecmd->argv[0]);
       break;
 
     case REDIR:
@@ -184,6 +158,29 @@ int main(void) {
       cmd++;
     if (*cmd == '\n')  // is a blank command
       continue;
+
+    // Parse tx here, actually
+    if (cmd[0] == 't' && cmd[1] == 'x' && cmd[2] == ' ') {
+      cmd += 3;  // strip "tx ", advance cmd str pointer
+
+      if (fork1() == 0) {
+        if (txbegin() < 0) {
+          fprintf(2, "txbegin failed\n");
+          exit(1);
+        }
+
+        runcmd(parsecmd(cmd));
+
+        if (txcommit() < 0) {
+          fprintf(2, "txcommit failed\n");
+          txabort();
+        }
+        exit(0);
+      }
+      wait(0);
+      continue;
+    }
+
     if (cmd[0] == 'c' && cmd[1] == 'd' && cmd[2] == ' ') {
       // Chdir must be called by the parent, not the child.
       cmd[strlen(cmd) - 1] = 0;  // chop \n
