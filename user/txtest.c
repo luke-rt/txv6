@@ -5,6 +5,11 @@
 
 #define TESTFILE "txdemo.txt"
 
+// ================================================
+// ***************** HELPERS **********************
+// ================================================
+
+// Function for writing to a file
 static void write_all(int fd, const char *s) {
   int n = strlen(s);
   if (write(fd, s, n) != n) {
@@ -13,6 +18,7 @@ static void write_all(int fd, const char *s) {
   }
 }
 
+// Function for replacing current file contents with some default value
 static void reset_file(const char *path, const char *contents) {
   int fd;
 
@@ -27,6 +33,7 @@ static void reset_file(const char *path, const char *contents) {
   close(fd);
 }
 
+// Function for printing the contents of the file to the terminal
 static void print_file(const char *tag, const char *path) {
   char buf[128];
   int fd = open(path, O_RDONLY);
@@ -49,6 +56,8 @@ static void print_file(const char *tag, const char *path) {
   close(fd);
 }
 
+// Function for forking a child process to print tx status and file contents 
+// (simulating an external observer), then waiting for it to finish.
 static void child_print(const char *tag, const char *path) {
   int pid = fork();
   int st = 0;
@@ -67,6 +76,16 @@ static void child_print(const char *tag, const char *path) {
   wait(&st);
 }
 
+
+// ================================================
+// ******************* TESTS **********************
+// ================================================
+
+/*
+* Testing a transaction performing a complete txbegin()->txstatus()->txcommit()
+* procedure. We print file contents throughout the execution trace to ensure
+* that integrity of the data is maintained in the transactional setting.
+*/
 static void test_commit(void) {
   int fd;
   int r;
@@ -106,6 +125,11 @@ static void test_commit(void) {
   unlink(TESTFILE);
 }
 
+/*
+* Testing transaction that is voluntarily aborted at the user level
+* with the txabort() system call.
+* Final file contents should not be modified by the incomplete tx.
+*/
 static void test_abort(void) {
   int fd;
   int r;
@@ -146,13 +170,19 @@ static void test_abort(void) {
   unlink(TESTFILE);
 }
 
-static void test_conflict(void) {
+/*
+* Testing two processes both in transactional mode.
+* Both parent and child attempt to open a file and write to the same file.
+* Conflict detection will mitigate the write-write conflict and abort
+* one of the transactions.
+*/
+static void test_ww_conflict(void) {
   int pid;
   int st = 0;
   int p2c[2], c2p[2];
   char buf[1];
 
-  printf("=== test_conflict ===\n");
+  printf("=== test_ww_conflict ===\n");
   reset_file(TESTFILE, "ORIGINAL");
   print_file("initial stable", TESTFILE);
 
@@ -245,14 +275,98 @@ static void test_conflict(void) {
   }
 }
 
+/*
+* Testing a transactional process that is ended early via crash/fault.
+* The TESTFILE contents should appear identical to the user both before
+* and after the process "crashes" with exit(1).
+*/
+static void test_implicit_abort(void) {
+  printf("=== test_implicit_abort ===\n");
+
+  reset_file(TESTFILE, "ORIGINAL");
+
+  int pid = fork();
+  if (pid == 0) {
+    txbegin();
+
+    int fd = open(TESTFILE, O_RDWR);
+    write_all(fd, "BROKEN!!");
+    close(fd);
+
+    // Simulate crash
+    exit(1);
+  }
+
+  wait(0);
+
+  print_file("after crash (should be ORIGINAL)", TESTFILE);
+}
+
+
+/*
+* Testing one process in transactional mode, and one regular process.
+* Both processes try to write to the same file.
+* Transactional process may need to abort or take priority, depending on our policy.
+*/
 /*static void test_asymmetric_conflict(void) {
 
 }*/
 
+/*
+* Testing a transaction that performs multiple writes.
+* Shows operational ordering inside the tx.
+*
+*/
+static void test_multiple_writes(void) {
+  printf("=== test_multiple_writes ===\n");
+
+  reset_file(TESTFILE, "START");
+
+  txbegin();
+
+  int fd = open(TESTFILE, O_RDWR);
+  write_all(fd, "AAAA");
+  close(fd);
+
+  fd = open(TESTFILE, O_RDWR);
+  write_all(fd, "BBBB");
+  close(fd);
+
+  fd = open(TESTFILE, O_RDWR);
+  write_all(fd, "CCCC");
+  close(fd);
+
+  txcommit();
+
+  print_file("final (should be BBBB or merged depending on impl)", TESTFILE);
+}
+
+/*
+* Testing transaction within a transaction.
+* Since we do not have support for this feature at the moment,
+* the transaction should abort.
+*/
+static void test_nested(void) {
+  printf("=== test_nested ===\n");
+
+  if (txbegin() < 0) exit(1);
+
+  int r = txbegin();
+  printf("second txbegin -> %d (should fail)\n", r);
+
+  txabort();
+}
+
+
 int main(void) {
   test_commit();
   test_abort();
-  test_conflict();
+  test_ww_conflict();
+
+  // Unverified tests
+  test_implicit_abort();
+  test_multiple_writes();
+  test_nested();
 
   // TODO: Adding more tests here later
   // test_asymmetric_conflict();
