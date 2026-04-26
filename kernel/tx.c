@@ -78,6 +78,7 @@ void *txshadow(void *header, int read_only, struct tx_ops *ops) {
 
   // workset full, should abort transaction
   if (tx->workset_size >= MAX_WORKSET) {
+    printf("DEBUG: txshadow -- workset full\n");
     return 0;  // unreachable
   }
 
@@ -86,6 +87,7 @@ void *txshadow(void *header, int read_only, struct tx_ops *ops) {
   struct tx_data *xobj = ops->get_xobj(header);
   acquire(&xobj->lock);
   if (xobj->writer != 0 && xobj->writer != tx) {
+    printf("DEBUG: txshadow -- aborting due to detection of another active tx\n");
     release(&xobj->lock);
     return 0;  // unreachable
   }
