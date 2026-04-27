@@ -21,6 +21,22 @@
 #define MAX_TRIALS 100
 #define BATCH_TRIALS 10
 
+// NUM_WRITE_OPT
+// Toggle this macro between the following values 
+// to adjust the volume of writes used for the batch tests
+// 1 -- 256
+// 2 -- 1024
+// 3 -- 4096
+#define NUM_WRITE_OPT 1
+
+// WRITE_SIZE_OPT
+// Toggle this macro between the following values
+// to adjust the size (in bytes) of each write used for the batch tests
+// 1 -- 16
+// 2 -- 32
+// 3 -- 64
+#define WRITE_SIZE_OPT 1
+
 // ––––––––––––––– Tx vs. no-Tx timing tests –––––––––––––––
 static void test_tx_vs_notx(void) {
   int fd;
@@ -138,9 +154,9 @@ static void test_optimal_batch(void) {
   
   reset_file(TESTFILE, "");
 
-  int total_writes = 256;
+  int total_writes = NUM_WRITE_OPT == 1 ? 256 : (NUM_WRITE_OPT == 2 ? 1024 : (NUM_WRITE_OPT == 3 ? 4096 : 256));
   int batch_sizes[8] = {1, 2, 4, 8, 16, 32, 64, 128};
-  int wr_size = 16;
+  int wr_size = WRITE_SIZE_OPT == 1 ? 16 : (WRITE_SIZE_OPT == 2 ? 32 : (WRITE_SIZE_OPT == 3 ? 64 : 16));
 
   // Initialize the buffer
   char *buf = malloc(wr_size);
@@ -211,9 +227,9 @@ static void test_optimal_batch_notx(void) {
   
   reset_file(TESTFILE, "");
 
-  int total_writes = 256;
+  int total_writes = NUM_WRITE_OPT == 1 ? 256 : (NUM_WRITE_OPT == 2 ? 1024 : (NUM_WRITE_OPT == 3 ? 4096 : 256));
   int batch_sizes[8] = {1, 2, 4, 8, 16, 32, 64, 128};
-  int wr_size = 16;
+  int wr_size = WRITE_SIZE_OPT == 1 ? 16 : (WRITE_SIZE_OPT == 2 ? 32 : (WRITE_SIZE_OPT == 3 ? 64 : 16));
 
   // Initialize the buffer
   char *buf = malloc(wr_size);
