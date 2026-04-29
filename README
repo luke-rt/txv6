@@ -38,4 +38,4 @@ Run:
 From the xv6 shell, run transactional tests such as:
 - txtest
 
-For tx timing tests, switch to jhong branch and run txtximing_test in the xv6 shell.
+For tx timing tests, switch to jhong branch and run txtiming_test in the xv6 shell.
