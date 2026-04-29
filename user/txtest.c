@@ -267,14 +267,12 @@ static void test_nested(void) {
 int main(void) {
   test_commit();
   test_abort();
-
   test_multiple_writes();
+  test_ww_conflict();
 
   if (false) {
     test_nested();
   }
-
-  test_ww_conflict();
 
   exit(0);
 }
