@@ -35,5 +35,10 @@ Prerequisites:
 Run:
 - make qemu
 
-From the xv6 shell, run transactional tests such as:
-- txtest
+From the xv6 shell, run transactional tests as custom shell commands:
+- $ txtest
+- $ txtiming_test
+
+To exit the xv6 shell:
+- Press Ctrl + a
+- Press x

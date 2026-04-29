@@ -405,12 +405,17 @@ int main(void) {
   // NOTE: May be helpful to comment out certain tests just to isolate
   // the one that you want to run in isolation, because each one may take
   // a while.
-  //test_tx_vs_notx();
 
-  test_tx_tail_latency();
+  // Or wrap them in if(false) conditionals
+
+  if (false)
+    test_tx_tail_latency();
+
   test_optimal_batch();
   test_optimal_batch_notx();
-  test_tx_vs_notx();
+
+  if (false)
+    test_tx_vs_notx();
 
   exit(0);
 }

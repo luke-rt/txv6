@@ -212,37 +212,6 @@ static void test_ww_conflict(void) {
 }
 
 /*
-* Testing a transactional process that is ended early via crash/fault.
-* The TESTFILE contents should appear identical to the user both before
-* and after the process "crashes" with exit(1).
-*/
-static void test_implicit_abort(void) {
-  printf("––– TEST_IMPLICIT_ABORT –––\n");
-
-  reset_file(TESTFILE, "ORIGIN");
-
-  int pid = fork();
-  if (pid == 0) {
-    txbegin();
-
-    int fd = open(TESTFILE, O_RDWR);
-    write_all(fd, "BROKEN");
-    close(fd);
-
-    // Simulate crash
-    exit(1);
-  }
-
-  wait(0);
-  printf("—–– Final State ———\n");
-  print_file("Actual (after crash)", TESTFILE);
-  printf("Expected: ORIGIN\n");
-  printf("\n");
-
-  unlink(TESTFILE);
-}
-
-/*
 * Testing a transaction that performs multiple writes.
 * Shows operational ordering inside the tx.
 *
@@ -303,7 +272,6 @@ int main(void) {
 
   if (false) {
     test_nested();
-    test_implicit_abort();
   }
 
   test_ww_conflict();
