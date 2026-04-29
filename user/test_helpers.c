@@ -67,10 +67,24 @@ void child_print(const char *tag, const char *path) {
   }
 
   if (pid == 0) {
-    printf("child txstatus -> %d\n", txstatus());
+    printf("Child txstatus: %d\n", txstatus());
     print_file(tag, path);
     exit(0);
   }
 
   wait(&st);
+}
+
+// Function for sorting an array of integer values in-place.
+// Primarily used for sorting latency/runtime data.
+void sort(int *arr, int n) {
+  for (int i = 0; i < n - 1; i++) {
+    for (int j = i + 1; j < n; j++) {
+      if (arr[j] < arr[i]) {
+        int tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+      }
+    }
+  }
 }

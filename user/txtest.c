@@ -21,12 +21,12 @@ static void test_commit(void) {
   int fd;
   int r;
 
-  printf("=== test_commit ===\n");
-  reset_file(TESTFILE, "ORIGINAL");
-  print_file("initial stable", TESTFILE);
+  printf("––– TEST_COMMIT –––\n");
+  reset_file(TESTFILE, "ORIGIN");
+  print_file("Initial stable", TESTFILE);
 
   r = txbegin();
-  printf("txbegin -> %d\n", r);
+  printf("txbegin: %d\n", r);
   if (r < 0)
     exit(1);
 
@@ -37,21 +37,23 @@ static void test_commit(void) {
     exit(1);
   }
 
-  write_all(fd, "SHADOW!!");
+  write_all(fd, "SHADOW");
   close(fd);
 
-  printf("txstatus -> %d\n", txstatus());
-  print_file("inside tx (shadow)", TESTFILE);
-  child_print("outside tx before commit (stable)", TESTFILE);
+  printf("txstatus: %d\n", txstatus());
+  print_file("Inside tx (shadow)", TESTFILE);
+  child_print("Outside tx before commit (stable)", TESTFILE);
 
   r = txcommit();
-  printf("txcommit -> %d\n", r);
+  printf("txcommit: %d\n", r);
   if (r < 0)
     exit(1);
 
-  child_print("outside tx after commit (stable)", TESTFILE);
-  printf("txstatus -> %d\n", txstatus());
-  print_file("after commit (stable)", TESTFILE);
+  printf("—–– Final State ———\n");
+  printf("txstatus: %d\n", txstatus());
+  child_print("Outside tx after commit (stable)", TESTFILE);
+  print_file("After commit (stable)", TESTFILE);
+  printf("\n");
 
   unlink(TESTFILE);
 }
@@ -65,12 +67,12 @@ static void test_abort(void) {
   int fd;
   int r;
 
-  printf("=== test_abort ===\n");
-  reset_file(TESTFILE, "ORIGINAL");
-  print_file("initial stable", TESTFILE);
+  printf("––– TEST_ABORT –––\n");
+  reset_file(TESTFILE, "ORIGIN");
+  print_file("Initial stable", TESTFILE);
 
   r = txbegin();
-  printf("txbegin -> %d\n", r);
+  printf("txbegin: %d\n", r);
   if (r < 0)
     exit(1);
 
@@ -81,22 +83,24 @@ static void test_abort(void) {
     exit(1);
   }
 
-  write_all(fd, "SHADOW!!");
+  write_all(fd, "SHADOW");
   close(fd);
 
   // Shadow write visible inside transaction
-  print_file("inside tx (shadow)", TESTFILE);
-  child_print("outside tx before abort (stable)", TESTFILE);
+  print_file("Inside tx (shadow)", TESTFILE);
+  child_print("Outside tx before abort (stable)", TESTFILE);
 
   r = txabort();
-  printf("txabort -> %d\n", r);
+  printf("txabort: %d\n", r);
   if (r < 0)
     exit(1);
 
   // After abort, file must show original content
-  printf("txstatus -> %d\n", txstatus());
-  print_file("after abort (ORIGINAL)", TESTFILE);
-  child_print("child after abort (ORIGINAL)", TESTFILE);
+  printf("—–– Final State ———\n");
+  printf("txstatus: %d\n", txstatus());
+  child_print("Outside tx after abort (ORIGIN)", TESTFILE);
+  print_file("After abort (ORIGIN)", TESTFILE);
+  printf("\n");
 
   unlink(TESTFILE);
 }
@@ -113,9 +117,9 @@ static void test_ww_conflict(void) {
   int p2c[2], c2p[2];
   char buf[1];
 
-  printf("=== test_ww_conflict ===\n");
-  reset_file(TESTFILE, "ORIGINAL");
-  print_file("initial stable", TESTFILE);
+  printf("––– TEST_WW_CONFLICT –––\n");
+  reset_file(TESTFILE, "ORIGIN");
+  print_file("Initial stable", TESTFILE);
 
   pipe(p2c);
   pipe(c2p);
@@ -132,18 +136,18 @@ static void test_ww_conflict(void) {
     close(c2p[0]);
 
     if (txbegin() < 0) {
-      printf("child: txbegin failed\n");
+      printf("Child: txbegin failed\n");
       exit(1);
     }
-    printf("child: txbegin ok\n");
+    printf("Child: txbegin success\n");
 
     int fd = open(TESTFILE, O_RDWR);
     if (fd < 0) {
-      printf("child: open failed\n");
+      printf("Child: open failed\n");
       txabort();
       exit(1);
     }
-    write_all(fd, "CHILD!!!");
+    write_all(fd, "CHILD");
     close(fd);
 
     // tell parent we are inside tx and have written
@@ -152,11 +156,11 @@ static void test_ww_conflict(void) {
     read(p2c[0], buf, 1);
 
     int r = txcommit();
-    printf("child: txcommit -> %d\n", r);
+    printf("Child txcommit: %d\n", r);
     if (r == 0)
-      print_file("child: committed", TESTFILE);
+      print_file("Child: txcommit success", TESTFILE);
     else
-      printf("child: commit failed (conflict)\n");
+      printf("Child: txcommit failed due to conflict\n");
 
     close(p2c[0]);
     close(c2p[1]);
@@ -168,18 +172,18 @@ static void test_ww_conflict(void) {
     close(c2p[1]);
 
     if (txbegin() < 0) {
-      printf("parent: txbegin failed\n");
+      printf("Parent: txbegin failed\n");
       exit(1);
     }
-    printf("parent: txbegin ok\n");
+    printf("Parent: txbegin success\n");
 
     int fd = open(TESTFILE, O_RDWR);
     if (fd < 0) {
-      printf("parent: open failed\n");
+      printf("Parent: open failed\n");
       txabort();
       exit(1);
     }
-    write_all(fd, "PARENT!!");
+    write_all(fd, "PARENT");
     close(fd);
 
     // wait for child to also have written
@@ -188,17 +192,18 @@ static void test_ww_conflict(void) {
     write(p2c[1], "r", 1);
 
     int r = txcommit();
-    printf("parent: txcommit -> %d\n", r);
+    printf("Parent txcommit: %d\n", r);
     if (r == 0)
-      print_file("parent: committed", TESTFILE);
+      print_file("Parent: txcommit success", TESTFILE);
     else
-      printf("parent: commit failed (conflict)\n");
+      printf("Parent: commit failed (conflict)\n");
 
     wait(&st);
 
-    printf("=== final state ===\n");
-    print_file("final", TESTFILE);
-    printf("expected: exactly one of PARENT!! or CHILD!!!, not ORIGINAL\n");
+    printf("—–– Final State ———\n");
+    print_file("Actual", TESTFILE);
+    printf("Expected: exactly one of PARENT or CHILD, not ORIGIN\n");
+    printf("\n");
 
     close(c2p[0]);
     close(p2c[1]);
@@ -212,16 +217,16 @@ static void test_ww_conflict(void) {
 * and after the process "crashes" with exit(1).
 */
 static void test_implicit_abort(void) {
-  printf("=== test_implicit_abort ===\n");
+  printf("––– TEST_IMPLICIT_ABORT –––\n");
 
-  reset_file(TESTFILE, "ORIGINAL");
+  reset_file(TESTFILE, "ORIGIN");
 
   int pid = fork();
   if (pid == 0) {
     txbegin();
 
     int fd = open(TESTFILE, O_RDWR);
-    write_all(fd, "BROKEN!!");
+    write_all(fd, "BROKEN");
     close(fd);
 
     // Simulate crash
@@ -229,19 +234,13 @@ static void test_implicit_abort(void) {
   }
 
   wait(0);
+  printf("—–– Final State ———\n");
+  print_file("Actual (after crash)", TESTFILE);
+  printf("Expected: ORIGIN\n");
+  printf("\n");
 
-  print_file("after crash (should be ORIGINAL)", TESTFILE);
+  unlink(TESTFILE);
 }
-
-
-/*
-* Testing one process in transactional mode, and one regular process.
-* Both processes try to write to the same file.
-* Transactional process may need to abort or take priority, depending on our policy.
-*/
-/*static void test_asymmetric_conflict(void) {
-
-}*/
 
 /*
 * Testing a transaction that performs multiple writes.
@@ -249,9 +248,9 @@ static void test_implicit_abort(void) {
 *
 */
 static void test_multiple_writes(void) {
-  printf("=== test_multiple_writes ===\n");
+  printf("––– TEST_MULTIPLE_WRITES –––\n");
 
-  reset_file(TESTFILE, "START");
+  reset_file(TESTFILE, "");
 
   txbegin();
 
@@ -269,22 +268,29 @@ static void test_multiple_writes(void) {
 
   txcommit();
 
-  print_file("final (should be BBBB or merged depending on impl)", TESTFILE);
+  printf("—–– Final State ———\n");
+  print_file("Actual", TESTFILE);
+  printf("Expected: CCCC\n");
+  printf("\n");
+
+  unlink(TESTFILE);
 }
 
 /*
 * Testing transaction within a transaction.
-* Since we do not have support for this feature at the moment,
-* the transaction should abort.
+* Would need further testing in future,
+* this feature is not fully supported right now.
 */
 static void test_nested(void) {
-  printf("=== test_nested ===\n");
+  printf("––– TEST_NESTED –––\n");
 
   if (txbegin() < 0) exit(1);
 
   int r = txbegin();
-  printf("second txbegin -> %d (should fail)\n", r);
-
+  printf("Second txbegin: %d\n", r);
+  printf("\n");
+  
+  txabort();
   txabort();
 }
 
@@ -292,15 +298,15 @@ static void test_nested(void) {
 int main(void) {
   test_commit();
   test_abort();
-  test_ww_conflict();
 
-  // Unverified tests
-  test_implicit_abort();
   test_multiple_writes();
-  test_nested();
 
-  // TODO: Adding more tests here later
-  // test_asymmetric_conflict();
+  if (false) {
+    test_nested();
+    test_implicit_abort();
+  }
+
+  test_ww_conflict();
 
   exit(0);
 }

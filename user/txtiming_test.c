@@ -27,7 +27,7 @@
 // 1 -- 256
 // 2 -- 1024
 // 3 -- 4096
-#define NUM_WRITE_OPT 1
+#define NUM_WRITE_OPT 3
 
 // WRITE_SIZE_OPT
 // Toggle this macro between the following values
@@ -283,11 +283,131 @@ static void test_optimal_batch_notx(void) {
   free(buf);
 }
 
+// –––––––––––––––– Latency tests –––––––––––––––––
+static void test_tx_tail_latency(void) {
+  int fd;
+  int r;
+
+  printf("=== test_tail_latency ===\n");
+  
+  reset_file(TESTFILE, "");
+  
+  // Fixing batch_size 
+  int batch_size = 256;
+  int wr_size = WRITE_SIZE_OPT == 1 ? 16 : (WRITE_SIZE_OPT == 2 ? 32 : (WRITE_SIZE_OPT == 3 ? 64 : 16));
+
+  int ntrials_mult = 1;
+
+  // Manually override wr_size for testing
+  //wr_size = 256;
+
+  // Initialize the buffer
+  char *buf = malloc(wr_size);
+  if (buf == 0) {
+    printf("malloc failed\n");
+    exit(1);
+  }
+  memset(buf, 'C', wr_size);
+
+  // Keep track of array of latencies
+  int *latencies = (int*) malloc((MAX_TRIALS * ntrials_mult) * sizeof(int));
+
+  for (int i = 0; i < (MAX_TRIALS * ntrials_mult); i++) {
+    int start = uptime();
+    // begin tx
+    r = txbegin();
+    if (r < 0)
+      exit(1);
+
+    fd = open(TESTFILE, O_RDWR);
+    if (fd < 0) {
+      printf("open(O_RDWR) failed\n");
+      exit(1);
+    }
+
+    for (int j = 0; j < batch_size; j++) {
+      /*fd = open(TESTFILE, O_RDWR);
+      if (fd < 0) {
+        printf("open(O_RDWR) failed\n");
+        exit(1);
+      }*/
+
+      if (write(fd, buf, wr_size) != wr_size) {
+        printf("write failed\n");
+        exit(1);
+      }
+
+      //close(fd);
+    }
+
+    close(fd);
+
+    r = txcommit();
+    if (r < 0)
+      exit(1);
+    // commit tx
+
+    int end = uptime();
+
+    // Record the latency of this batch of writes
+    latencies[i] = (end - start);
+    fprintf(2, "DEBUG: Latency observed for i = %d, batch size of %d: %d ms\n", i, batch_size, latencies[i]);
+  }
+
+  // Analyze our distribution of latencies
+  sort(latencies, (MAX_TRIALS * ntrials_mult));
+
+  int p50 = latencies[(MAX_TRIALS * ntrials_mult) * 50 / 100];
+  int p90 = latencies[(MAX_TRIALS * ntrials_mult) * 90 / 100];
+  int p99 = latencies[(MAX_TRIALS * ntrials_mult) * 99 / 100];
+  int min = latencies[0];
+  int max = latencies[(MAX_TRIALS * ntrials_mult) - 1];
+
+  // Print percentiles
+  printf("Latency stats (batch=%d):\n", batch_size);
+  printf("min: %d ms\n", min);
+  printf("p50: %d ms\n", p50);
+  printf("p90: %d ms\n", p90);
+  printf("p99: %d ms\n", p99);
+  printf("max: %d ms\n", max);
+
+  // Histogram-style
+  // Categories/buckets: 0-3 ms, 3-10 ms, 10+ ms
+  int b0_3 = 0;
+  int b3_10 = 0;
+  int b10_plus = 0;
+
+  // Classify each trial
+  for (int i = 0; i < (MAX_TRIALS * ntrials_mult); i++) {
+    int t = latencies[i];
+
+    if (t <= 3)
+      b0_3++;
+    else if (t <= 10)
+      b3_10++;
+    else
+      b10_plus++;
+  }
+
+  // Print distribution
+  printf("distribution:\n");
+  printf("0–3ms:   %d\n", b0_3);
+  printf("3–10ms:  %d\n", b3_10);
+  printf("10+ ms:  %d\n", b10_plus);
+
+  printf("——————————————————————————————————\n");
+
+  free(buf);
+  free(latencies);
+}
+
 int main(void) {
   // NOTE: May be helpful to comment out certain tests just to isolate
   // the one that you want to run in isolation, because each one may take
   // a while.
   //test_tx_vs_notx();
+
+  test_tx_tail_latency();
   test_optimal_batch();
   test_optimal_batch_notx();
   test_tx_vs_notx();

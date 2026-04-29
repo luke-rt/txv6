@@ -6,5 +6,6 @@ void write_all(int fd, const char *s);
 void reset_file(const char *path, const char *contents);
 void print_file(const char *tag, const char *path);
 void child_print(const char *tag, const char *path);
+void sort(int *arr, int n);
 
 #endif
