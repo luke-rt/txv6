@@ -408,6 +408,8 @@ int main(void) {
 
   // Or wrap them in if(false) conditionals
 
+  // NOTE: Times are mistakenly reported in ms, but are actually measured in clock ticks.
+
   if (false)
     test_tx_tail_latency();
 
