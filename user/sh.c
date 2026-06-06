@@ -3,6 +3,7 @@
 #include "kernel/types.h"
 #include "user/user.h"
 #include "kernel/fcntl.h"
+#include "kernel/tx.h"
 
 // Parsed command representation
 #define EXEC 1
@@ -157,6 +158,29 @@ int main(void) {
       cmd++;
     if (*cmd == '\n')  // is a blank command
       continue;
+
+    // Parse tx here, actually
+    if (cmd[0] == 't' && cmd[1] == 'x' && cmd[2] == ' ') {
+      cmd += 3;  // strip "tx ", advance cmd str pointer
+
+      if (fork1() == 0) {
+        if (txbegin() < 0) {
+          fprintf(2, "txbegin failed\n");
+          exit(1);
+        }
+
+        runcmd(parsecmd(cmd));
+
+        if (txcommit() < 0) {
+          fprintf(2, "txcommit failed\n");
+          txabort();
+        }
+        exit(0);
+      }
+      wait(0);
+      continue;
+    }
+
     if (cmd[0] == 'c' && cmd[1] == 'd' && cmd[2] == ' ') {
       // Chdir must be called by the parent, not the child.
       cmd[strlen(cmd) - 1] = 0;  // chop \n

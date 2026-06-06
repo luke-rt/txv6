@@ -35,7 +35,10 @@ Prerequisites:
 Run:
 - make qemu
 
-From the xv6 shell, run transactional tests such as:
-- txtest
+From the xv6 shell, run transactional tests as custom shell commands:
+- $ txtest
+- $ txtiming_test
 
-For tx timing tests, switch to jhong branch and run txtiming_test in the xv6 shell.
+To exit the xv6 shell:
+- Press Ctrl + a
+- Press x

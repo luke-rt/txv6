@@ -47,8 +47,8 @@ void tx_abort_now(void *header) {
     panic("tx_abort_now: no active transaction");
 
   // Undo operations for workset entry that led to abort
-  for (int i = 0; i < tx->undo_size; i++) {
-    tx->undo_ops[i](header);
+  for (int i = tx->undo_size - 1; i >= 0; i--) { // LIFO
+    tx->undo_ops[i](tx->undo_args[i]);
   }
 
   // abort functions for previous workset entries
@@ -78,6 +78,7 @@ void *txshadow(void *header, int read_only, struct tx_ops *ops) {
 
   // workset full, should abort transaction
   if (tx->workset_size >= MAX_WORKSET) {
+    printf("DEBUG: txshadow -- workset full\n");
     return 0;  // unreachable
   }
 
@@ -86,6 +87,7 @@ void *txshadow(void *header, int read_only, struct tx_ops *ops) {
   struct tx_data *xobj = ops->get_xobj(header);
   acquire(&xobj->lock);
   if (xobj->writer != 0 && xobj->writer != tx) {
+    printf("DEBUG: txshadow -- aborting due to detection of another active tx\n");
     release(&xobj->lock);
     return 0;  // unreachable
   }
@@ -282,10 +284,8 @@ struct buf_data *bdata(struct buf *bp) {
   if (p && p->tx && p->tx->status == TX_ACTIVE) {
     int old_size = p->tx->workset_size;
     struct buf_data *d = (struct buf_data *)txshadow(bp, 0, &buffer_ops);
-    if (d == 0) {
-      brelse(bp);
-      tx_abort_now(bp);
-    }
+    if (d == 0)
+      panic("bdata: txshadow failed");
 
     // new shadow was created
     if (p->tx->workset_size > old_size) {
@@ -297,4 +297,28 @@ struct buf_data *bdata(struct buf *bp) {
     return d;
   }
   return bp->data;
+}
+
+
+// ==================
+// *** UNDO_OPS ***
+// ==================
+
+void undo_iunlock(void *arg) {
+  struct inode *ip = (struct inode *)arg;
+  iunlock(ip);
+}
+
+void undo_buf_unlock(void *arg) {
+  struct buf *bp = (struct buf *)arg;
+  releasesleep(&bp->lock);
+}
+
+// PLACEHOLDERS for now, can add more when needed
+void undo_b(void *arg) {
+
+}
+
+void undo_c(void *arg) {
+
 }
